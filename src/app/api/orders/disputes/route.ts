@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   try {
     const dispute = db.prepare(`
       SELECT * FROM order_disputes WHERE order_id = ? ORDER BY created_at DESC LIMIT 1
-    `).get(order_id);
+    `).get(order_id) as { id: string | number; [key: string]: any };
 
     if (!dispute) {
       return NextResponse.json(null);

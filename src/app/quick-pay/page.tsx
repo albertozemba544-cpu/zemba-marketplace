@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import SkyBackground from '@/components/SkyBackground';
 
-interface Link { id: string; title: string; price: number; seller_id: string; created_at: string; }
+interface Link { id: string; product_id?: string; title: string; price: number; seller_id: string; created_at: string; }
 
 export default function QuickPayPage() {
   const params = useSearchParams();

@@ -5,11 +5,68 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import { randomUUID } from 'crypto';
+import fs from 'fs';
 
 const dbPath = path.join(process.cwd(), 'zemba.dev.sqlite');
-export const db = new Database(dbPath);
+const dbDir = path.dirname(dbPath);
 
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const sqlite = new Database(dbPath);
+
+// Optimize SQLite performance
+sqlite.pragma('journal_mode = WAL');
+sqlite.pragma('foreign_keys = ON');
+
+/**
+ * Enhanced db export that supports standard better-sqlite3 methods 
+ * AND a compatible .query() method for routes using $1, $2 parameter placeholders.
+ */
+export const db = {
+  ...sqlite,
+  query: (sql: string, params: any[] = []) => {
+    // Convert PostgreSQL-style $1, $2 placeholders to SQLite ? placeholders
+    const convertedSql = sql.replace(/\$(\d+)/g, '?');
+    const trimmed = sql.trim().toLowerCase();
+    
+    try {
+      if (trimmed.startsWith('select')) {
+        const stmt = sqlite.prepare(convertedSql);
+        const rows = stmt.all(...params);
+        return { rows, rowCount: rows.length };
+      } else {
+        const stmt = sqlite.prepare(convertedSql);
+        const info = stmt.run(...params);
+        return { rowCount: info.changes, lastInsertRowid: info.lastInsertRowid };
+      }
+    } catch (error) {
+      console.error('Database Query Error:', { sql: convertedSql, params, error });
+      throw error;
+    }
+  },
+};
+
+// Initialize all required application tables
 db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    role TEXT NOT NULL,
+    full_name TEXT NOT NULL,
+    business_name TEXT,
+    phone_number TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    momo_provider TEXT,
+    momo_number TEXT,
+    approval_status TEXT DEFAULT 'PENDING',
+    account_status TEXT DEFAULT 'ACTIVE',
+    user_category TEXT,
+    newsletter_opt_in INTEGER DEFAULT 0,
+    ban_reason TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
   CREATE TABLE IF NOT EXISTS product_reviews (
     id TEXT PRIMARY KEY,
     product_id TEXT NOT NULL,
@@ -69,6 +126,13 @@ db.exec(`
     recipient_id TEXT,
     notification_type TEXT,
     sent_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS transaction_events (
+    id TEXT PRIMARY KEY,
+    order_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    payload TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
   );
 `);
 

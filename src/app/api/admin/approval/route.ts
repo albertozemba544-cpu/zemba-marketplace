@@ -1,36 +1,33 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db, logEvent } from '@/lib/db';
+import { execute } from '@/lib/db';
+import { requireUser } from '@/lib/auth';
+import { fail, handleError, isUuid } from '@/lib/http';
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(req, ['admin']);
+  if ('res' in auth) return auth.res;
   try {
     const { entity, id, decision } = await req.json();
-    
-    if (!['user', 'product'].includes(entity) || !['APPROVED', 'REJECTED'].includes(decision) || !id) {
-      return NextResponse.json({ error: 'Invalid approval request' }, { status: 400 });
+    if (!['user', 'product'].includes(entity) || !['APPROVED', 'REJECTED'].includes(decision) || !isUuid(id)) {
+      return fail('Invalid approval request');
     }
 
-    const table = entity === 'user' ? 'users' : 'products';
-    const row = db.prepare(`SELECT id${entity === 'product' ? ', seller_id' : ''} FROM ${table} WHERE id = ?`).get(id) as any;
-    
-    if (!row) {
-      return NextResponse.json({ error: `${entity} not found` }, { status: 404 });
+    let changed: number;
+    if (entity === 'user') {
+      changed = await execute("UPDATE users SET approval_status = $1 WHERE id = $2 AND role <> 'admin'", [decision, id]);
+    } else {
+      const status = decision === 'APPROVED' ? 'ACTIVE' : 'PAUSED';
+      // quick-link products stay LINK_ONLY so they never appear in the public marketplace
+      changed = await execute(
+        "UPDATE products SET approval_status = $1, status = CASE WHEN status = 'LINK_ONLY' THEN status ELSE $2::text END WHERE id = $3",
+        [decision, status, id]
+      );
     }
-
-    db.prepare(`UPDATE ${table} SET approval_status = ? WHERE id = ?`).run(decision, id);
-
-    if (entity === 'product' && row.seller_id) {
-      db.prepare(`UPDATE products SET status = CASE WHEN ? = 'APPROVED' THEN 'ACTIVE' ELSE 'PAUSED' END WHERE id = ?`).run(decision, id);
-      const eventOrder = db.prepare('SELECT id FROM orders WHERE product_id = ? ORDER BY created_at DESC LIMIT 1').get(id) as { id: string } | undefined;
-      if (eventOrder) {
-        logEvent(eventOrder.id, 'PRODUCT_APPROVAL_UPDATED', { product_id: id, decision });
-      }
-    }
-
+    if (!changed) return fail(`${entity} not found`, 404);
     return NextResponse.json({ ok: true, entity, id, decision });
-  } catch (error: any) {
-    console.error('Approval API error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  } catch (error) {
+    return handleError(error);
   }
 }

@@ -1,52 +1,78 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/db';
 
 export async function GET() {
   try {
-    const users = db.prepare(`
-      SELECT users.id, users.role, users.full_name, users.business_name, users.email, users.phone_number, users.approval_status, users.account_status, users.user_category, users.newsletter_opt_in, users.ban_reason, users.created_at, 
-             vendor_verification.nrc_number, vendor_verification.location
-      FROM users 
-      LEFT JOIN vendor_verification ON users.id = vendor_verification.user_id
-      ORDER BY users.created_at DESC
-    `).all();
+    // Fetch users with vendor verification
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('*, vendor_verification(*)')
+      .order('created_at', { ascending: false });
 
-    const products = db.prepare(`
-      SELECT products.*, users.business_name, users.full_name as seller_name
-      FROM products JOIN users ON users.id = products.seller_id ORDER BY products.created_at DESC
-    `).all();
+    if (usersError) throw usersError;
 
-    const orders = db.prepare(`
-      SELECT orders.*, products.title, users.business_name, users.full_name as seller_name
-      FROM orders LEFT JOIN products ON products.id = orders.product_id
-      LEFT JOIN users ON users.id = orders.seller_id ORDER BY orders.created_at DESC LIMIT 200
-    `).all();
+    // Fetch products with seller info
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select('*, users(business_name, full_name)')
+      .order('created_at', { ascending: false });
 
-    const disputes = db.prepare(`
-      SELECT disputes.*, orders.order_reference, orders.status as order_status
-      FROM disputes JOIN orders ON orders.id = disputes.order_id ORDER BY disputes.created_at DESC
-    `).all();
+    if (productsError) throw productsError;
 
-    const events = db.prepare(`
-      SELECT transaction_events.*, orders.order_reference
-      FROM transaction_events JOIN orders ON orders.id = transaction_events.order_id
-      ORDER BY transaction_events.created_at DESC LIMIT 100
-    `).all();
+    // Fetch orders with product and seller info
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('*, products(title), users(business_name, full_name)')
+      .order('created_at', { ascending: false })
+      .limit(200);
 
-    const announcements = db.prepare('SELECT * FROM announcements ORDER BY created_at DESC LIMIT 50').all();
-    
-    const newsletterSubscribers = db.prepare("SELECT COUNT(*) as count FROM users WHERE newsletter_opt_in = 1 AND account_status = 'ACTIVE'").get() as { count: number };
+    if (ordersError) throw ordersError;
 
-    return NextResponse.json({ 
-      users, 
-      products, 
-      orders, 
-      disputes, 
-      events, 
-      announcements, 
-      newsletterSubscribers: newsletterSubscribers.count 
+    // Fetch disputes with order info
+    const { data: disputes, error: disputesError } = await supabase
+      .from('disputes')
+      .select('*, orders(order_reference, status)')
+      .order('created_at', { ascending: false });
+
+    if (disputesError) throw disputesError;
+
+    // Fetch transaction events with order info
+    const { data: events, error: eventsError } = await supabase
+      .from('transaction_events')
+      .select('*, orders(order_reference)')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (eventsError) throw eventsError;
+
+    // Fetch announcements
+    const { data: announcements, error: announcementsError } = await supabase
+      .from('announcements')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (announcementsError) throw announcementsError;
+
+    // Count newsletter subscribers
+    const { data: subscribers, error: subscribersError, count } = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true })
+      .eq('newsletter_opt_in', true)
+      .eq('account_status', 'ACTIVE');
+
+    if (subscribersError) throw subscribersError;
+
+    return NextResponse.json({
+      users: users || [],
+      products: products || [],
+      orders: orders || [],
+      disputes: disputes || [],
+      events: events || [],
+      announcements: announcements || [],
+      newsletterSubscribers: count || 0,
     });
   } catch (error: any) {
     console.error('Admin overview error:', error);

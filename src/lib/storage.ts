@@ -13,7 +13,6 @@ const BUCKET_NAME = 'product-uploads';
  */
 export async function initializeStorageBucket() {
   try {
-    // Check if bucket exists
     const { data: buckets, error: listError } = await supabase.storage.listBuckets();
     
     if (listError) {
@@ -24,7 +23,6 @@ export async function initializeStorageBucket() {
     const bucketExists = buckets?.some(b => b.name === BUCKET_NAME);
     
     if (!bucketExists) {
-      // Create bucket if it doesn't exist
       const { error: createError } = await supabase.storage.createBucket(BUCKET_NAME, {
         public: true,
       });
@@ -54,7 +52,6 @@ export async function saveUploadedImage(file: File): Promise<string> {
   }
 
   try {
-    // Initialize bucket if needed
     await initializeStorageBucket();
 
     const filename = `${randomUUID()}${extension}`;
@@ -74,7 +71,6 @@ export async function saveUploadedImage(file: File): Promise<string> {
       throw error;
     }
 
-    // Get public URL for the uploaded file
     const { data: publicUrlData } = supabase.storage
       .from(BUCKET_NAME)
       .getPublicUrl(filePath);

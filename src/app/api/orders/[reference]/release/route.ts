@@ -1,51 +1,44 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
-import { db, getOrderByReference, logEvent } from '@/lib/db';
+import { getOrderByReference, logEvent, withTransaction } from '@/lib/db';
+import { requireUser } from '@/lib/auth';
+import { createNotification } from '@/lib/orders';
+import { fail, handleError } from '@/lib/http';
 
+// Buyer confirms delivery with the delivery code, which releases the money to the seller.
 export async function POST(req: NextRequest, { params }: { params: { reference: string } }) {
-  const contentType = req.headers.get('content-type') || '';
-  const { code } = contentType.includes('application/json') ? await req.json() : Object.fromEntries((await req.formData()).entries());
-  const order = getOrderByReference(params.reference);
-  if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+  const auth = await requireUser(req, ['customer']);
+  if ('res' in auth) return auth.res;
+  try {
+    const body = await req.json().catch(() => ({}));
+    const code = String(body.code ?? '').trim();
 
-  if (order.status !== 'FUNDS_SECURED' && order.status !== 'DISPATCHED') {
-    return NextResponse.json({ error: `Cannot release from status ${order.status}` }, { status: 400 });
-  }
-  if (order.delivery_code && code !== order.delivery_code) {
-    return NextResponse.json({ error: 'Incorrect delivery code' }, { status: 400 });
-  }
+    const order = await getOrderByReference(params.reference);
+    if (!order || order.customer_id !== auth.user.id) return fail('Order not found', 404);
+    if (order.status !== 'FUNDS_SECURED' && order.status !== 'DISPATCHED') {
+      return fail(`Cannot release from status ${order.status}`, 400);
+    }
+    if (!order.delivery_code || code !== order.delivery_code) return fail('Incorrect delivery code', 400);
 
-  db.prepare(`UPDATE orders SET status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(order.id);
-  logEvent(order.id, 'COMPLETED', { released_by: 'buyer_confirmation' });
-  
-  // Send notifications
-  if (order.seller_id) {
-    fetch(new URL('/api/notifications', req.url).toString(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        order_id: order.id,
-        recipient_id: order.seller_id,
-        notification_type: 'DELIVERY_CONFIRMED',
-      }),
-    }).catch(() => {});
-  }
-  
-  if (order.customer_id) {
-    fetch(new URL('/api/notifications', req.url).toString(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        order_id: order.id,
-        recipient_id: order.customer_id,
-        notification_type: 'COMPLETED',
-      }),
-    }).catch(() => {});
-  }
-  
-  // TODO: call the gateway's payout API to send order.net_amount to the seller's momo_number.
+    const released = await withTransaction(async (client) => {
+      const updated = await client.query(
+        `UPDATE orders SET status = 'COMPLETED', updated_at = now()
+         WHERE id = $1 AND status IN ('FUNDS_SECURED', 'DISPATCHED')`,
+        [order.id]
+      );
+      if (updated.rowCount === 0) return false;
+      await logEvent(order.id, 'COMPLETED', { released_by: 'buyer_confirmation' }, client);
+      return true;
+    });
+    if (!released) return fail('This order was already updated', 409);
 
-  if (!contentType.includes('application/json')) {
-    return NextResponse.redirect(new URL(`/checkout/${order.order_reference}`, req.url));
+    if (order.seller_id) await createNotification(order.id, order.seller_id, 'DELIVERY_CONFIRMED').catch(() => null);
+    await createNotification(order.id, order.customer_id, 'COMPLETED').catch(() => null);
+    // TODO: call the gateway's payout API to send order.net_amount to the seller's momo_number.
+
+    return NextResponse.json({ status: 'COMPLETED', net_amount: order.net_amount });
+  } catch (error) {
+    return handleError(error);
   }
-  return NextResponse.json({ status: 'COMPLETED', net_amount: order.net_amount });
 }

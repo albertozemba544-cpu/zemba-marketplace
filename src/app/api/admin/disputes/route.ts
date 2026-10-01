@@ -1,49 +1,64 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db, logEvent } from '@/lib/db';
+import { query, queryOne, withTransaction, logEvent } from '@/lib/db';
+import { requireUser } from '@/lib/auth';
+import { fail, handleError, isUuid } from '@/lib/http';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireUser(req, ['admin']);
+  if ('res' in auth) return auth.res;
   try {
-    const disputes = db.prepare(`
-      SELECT disputes.*, orders.order_reference, orders.amount, orders.status as order_status
-      FROM disputes JOIN orders ON orders.id = disputes.order_id
-      ORDER BY disputes.created_at DESC
-    `).all();
-    return NextResponse.json({ disputes });
-  } catch (error: any) {
-    console.error('Failed to fetch disputes:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    const disputes = await query<any>(`
+      SELECT d.*, o.order_reference, o.amount, o.status AS order_status
+      FROM disputes d JOIN orders o ON o.id = d.order_id
+      ORDER BY d.created_at DESC`);
+
+    const ids = disputes.map((d) => d.id);
+    const messages = ids.length
+      ? await query<any>(
+          `SELECT m.id, m.dispute_id, m.sender_id, m.message, m.created_at, u.full_name, u.role AS sender_role
+           FROM dispute_messages m JOIN users u ON u.id = m.sender_id
+           WHERE m.dispute_id = ANY($1::uuid[]) ORDER BY m.created_at ASC`,
+          [ids]
+        )
+      : [];
+    const withMessages = disputes.map((d) => ({ ...d, messages: messages.filter((m) => m.dispute_id === d.id) }));
+    return NextResponse.json({ disputes: withMessages });
+  } catch (error) {
+    return handleError(error);
   }
 }
 
+// Admin resolves a dispute: refund the buyer or release the money to the seller.
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(req, ['admin']);
+  if ('res' in auth) return auth.res;
   try {
-    // Admin resolves a dispute: refund the buyer or release to the seller.
     const { dispute_id, resolution, admin_notes } = await req.json();
-    
-    if (!dispute_id || !resolution) {
-      return NextResponse.json({ error: 'Dispute ID and resolution are required' }, { status: 400 });
+    if (!isUuid(dispute_id) || !['refund', 'release'].includes(resolution)) {
+      return fail('Dispute ID and a valid resolution are required');
     }
 
-    const dispute = db.prepare('SELECT * FROM disputes WHERE id = ?').get(dispute_id) as any;
-    if (!dispute) {
-      return NextResponse.json({ error: 'Dispute not found' }, { status: 404 });
-    }
+    const dispute = await queryOne<any>('SELECT * FROM disputes WHERE id = $1', [dispute_id]);
+    if (!dispute) return fail('Dispute not found', 404);
+    if (dispute.status !== 'OPEN') return fail('This dispute has already been resolved', 409);
 
-    const newOrderStatus = resolution === 'refund' ? 'REFUNDED' : 'COMPLETED';
-    const newDisputeStatus = resolution === 'refund' ? 'RESOLVED_REFUND' : 'RESOLVED_RELEASE';
+    const orderStatus = resolution === 'refund' ? 'REFUNDED' : 'COMPLETED';
+    const disputeStatus = resolution === 'refund' ? 'RESOLVED_REFUND' : 'RESOLVED_RELEASE';
 
-    db.prepare(`UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(newOrderStatus, dispute.order_id);
-    db.prepare(`UPDATE disputes SET status = ?, admin_notes = ?, resolved_at = CURRENT_TIMESTAMP WHERE id = ?`)
-      .run(newDisputeStatus, admin_notes || '', dispute_id);
-
-    logEvent(dispute.order_id, 'DISPUTE_RESOLVED', { resolution, admin_notes });
-    // TODO: trigger actual refund or payout call to the gateway here.
+    await withTransaction(async (client) => {
+      await client.query('UPDATE orders SET status = $1, updated_at = now() WHERE id = $2', [orderStatus, dispute.order_id]);
+      await client.query(
+        'UPDATE disputes SET status = $1, admin_notes = $2, resolved_at = now() WHERE id = $3',
+        [disputeStatus, String(admin_notes || '').slice(0, 2000), dispute_id]
+      );
+      await logEvent(dispute.order_id, 'DISPUTE_RESOLVED', { resolution, admin_notes }, client);
+    });
+    // TODO: call the payment gateway here to actually refund the buyer or pay the seller.
 
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
-    console.error('Failed to resolve dispute:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  } catch (error) {
+    return handleError(error);
   }
 }

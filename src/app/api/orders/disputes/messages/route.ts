@@ -1,23 +1,35 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { randomUUID } from 'crypto';
+import { queryOne } from '@/lib/db';
+import { requireUser } from '@/lib/auth';
+import { fail, handleError, isUuid } from '@/lib/http';
 
 export async function POST(req: NextRequest) {
-  const { dispute_id, sender_id, message } = await req.json();
-
-  if (!dispute_id || !sender_id || !message) {
-    return NextResponse.json({ error: 'dispute_id, sender_id, and message are required' }, { status: 400 });
-  }
-
+  const auth = await requireUser(req);
+  if ('res' in auth) return auth.res;
   try {
-    const msg_id = randomUUID();
-    db.prepare(`
-      INSERT INTO dispute_messages (id, dispute_id, sender_id, message, created_at)
-      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `).run(msg_id, dispute_id, sender_id, message);
+    const { dispute_id, message } = await req.json();
+    const text = String(message || '').trim();
+    if (!isUuid(dispute_id) || !text) return fail('dispute_id and message are required');
 
-    return NextResponse.json({ msg_id }, { status: 201 });
+    const dispute = await queryOne<any>(
+      `SELECT d.id, d.status, o.customer_id, o.seller_id
+       FROM disputes d JOIN orders o ON o.id = d.order_id WHERE d.id = $1`,
+      [dispute_id]
+    );
+    const { user } = auth;
+    if (!dispute || (user.role !== 'admin' && dispute.customer_id !== user.id && dispute.seller_id !== user.id)) {
+      return fail('Dispute not found', 404);
+    }
+    if (dispute.status !== 'OPEN') return fail('This dispute is closed', 409);
+
+    const saved = await queryOne<{ id: string }>(
+      'INSERT INTO dispute_messages (dispute_id, sender_id, message) VALUES ($1, $2, $3) RETURNING id',
+      [dispute_id, user.id, text.slice(0, 1000)]
+    );
+    return NextResponse.json({ msg_id: saved?.id }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: 'Unable to post message' }, { status: 500 });
+    return handleError(error, 'Unable to post message');
   }
 }

@@ -1,140 +1,74 @@
-// Local dev: SQLite. Production: swap internals for a `pg` Pool against
-// Supabase/Neon and keep these exported function names so pages/routes
-// don't need to change.
+// Postgres (Supabase) access layer.
+// Every API route talks to the database through the helpers in this file.
 
-import Database from 'better-sqlite3';
-import path from 'path';
+import { Pool, PoolClient, types } from 'pg';
 import { randomUUID } from 'crypto';
-import fs from 'fs';
 
-const dbPath = path.join(process.cwd(), 'zemba.dev.sqlite');
-const dbDir = path.dirname(dbPath);
+// Postgres returns DECIMAL and COUNT() as strings. The pages expect numbers.
+types.setTypeParser(1700, (value: string) => parseFloat(value)); // numeric / decimal
+types.setTypeParser(20, (value: string) => parseInt(value, 10)); // bigint (COUNT)
 
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+const globalForPool = globalThis as unknown as { zembaPool?: Pool };
+
+function createPool(): Pool {
+  let connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('DATABASE_URL is not set. Add your Supabase connection string in Vercel environment variables.');
+  }
+  // sslmode in the URL would override the ssl option below and break Supabase certificates
+  try {
+    const url = new URL(connectionString);
+    url.searchParams.delete('sslmode');
+    connectionString = url.toString();
+  } catch {
+    /* leave the string as it is */
+  }
+  return new Pool({
+    connectionString,
+    ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
+    max: 3,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 10_000,
+  });
 }
 
-const sqlite = new Database(dbPath);
+export function getPool(): Pool {
+  if (!globalForPool.zembaPool) globalForPool.zembaPool = createPool();
+  return globalForPool.zembaPool;
+}
 
-// Optimize SQLite performance
-sqlite.pragma('journal_mode = WAL');
-sqlite.pragma('foreign_keys = ON');
+type Params = unknown[];
 
-/**
- * Enhanced db export that supports standard better-sqlite3 methods 
- * AND a compatible .query() method for routes using $1, $2 parameter placeholders.
- */
-export const db = {
-  ...sqlite,
-  query: (sql: string, params: any[] = []) => {
-    // Convert PostgreSQL-style $1, $2 placeholders to SQLite ? placeholders
-    const convertedSql = sql.replace(/\$(\d+)/g, '?');
-    const trimmed = sql.trim().toLowerCase();
-    
-    try {
-      if (trimmed.startsWith('select')) {
-        const stmt = sqlite.prepare(convertedSql);
-        const rows = stmt.all(...params);
-        return { rows, rowCount: rows.length };
-      } else {
-        const stmt = sqlite.prepare(convertedSql);
-        const info = stmt.run(...params);
-        return { rowCount: info.changes, lastInsertRowid: info.lastInsertRowid };
-      }
-    } catch (error) {
-      console.error('Database Query Error:', { sql: convertedSql, params, error });
-      throw error;
-    }
-  },
-};
+export async function query<T = any>(text: string, params: Params = []): Promise<T[]> {
+  const result = await getPool().query(text, params as any[]);
+  return result.rows as T[];
+}
 
-// Initialize all required application tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    role TEXT NOT NULL,
-    full_name TEXT NOT NULL,
-    business_name TEXT,
-    phone_number TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    momo_provider TEXT,
-    momo_number TEXT,
-    approval_status TEXT DEFAULT 'PENDING',
-    account_status TEXT DEFAULT 'ACTIVE',
-    user_category TEXT,
-    newsletter_opt_in INTEGER DEFAULT 0,
-    ban_reason TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS product_reviews (
-    id TEXT PRIMARY KEY,
-    product_id TEXT NOT NULL,
-    seller_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    product_rating INTEGER NOT NULL CHECK (product_rating BETWEEN 1 AND 5),
-    seller_rating INTEGER NOT NULL CHECK (seller_rating BETWEEN 1 AND 5),
-    comment TEXT NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(product_id, user_id)
-  );
-  CREATE TABLE IF NOT EXISTS suggestions (
-    id TEXT PRIMARY KEY,
-    user_id TEXT,
-    subject TEXT NOT NULL,
-    message TEXT NOT NULL,
-    status TEXT DEFAULT 'NEW',
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS quick_links (
-    id TEXT PRIMARY KEY,
-    seller_id TEXT NOT NULL,
-    product_id TEXT,
-    title TEXT NOT NULL,
-    price REAL NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS vendor_verification (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL UNIQUE,
-    nrc_number TEXT,
-    location TEXT,
-    business_registration TEXT,
-    verified_at TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS order_disputes (
-    id TEXT PRIMARY KEY,
-    order_id TEXT NOT NULL,
-    buyer_id TEXT,
-    seller_id TEXT,
-    reason TEXT,
-    status TEXT DEFAULT 'OPEN',
-    admin_decision TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS dispute_messages (
-    id TEXT PRIMARY KEY,
-    dispute_id TEXT NOT NULL,
-    sender_id TEXT NOT NULL,
-    message TEXT NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS order_notifications (
-    id TEXT PRIMARY KEY,
-    order_id TEXT,
-    recipient_id TEXT,
-    notification_type TEXT,
-    sent_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS transaction_events (
-    id TEXT PRIMARY KEY,
-    order_id TEXT NOT NULL,
-    event_type TEXT NOT NULL,
-    payload TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-`);
+export async function queryOne<T = any>(text: string, params: Params = []): Promise<T | undefined> {
+  const rows = await query<T>(text, params);
+  return rows[0];
+}
+
+/** Runs a statement and returns how many rows it changed. */
+export async function execute(text: string, params: Params = []): Promise<number> {
+  const result = await getPool().query(text, params as any[]);
+  return result.rowCount ?? 0;
+}
+
+export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 
 export const PLATFORM_FEE_RATE = 0.025;
 
@@ -157,28 +91,26 @@ export interface User {
   approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
   account_status: 'ACTIVE' | 'SUSPENDED' | 'BANNED';
   user_category: string;
-  newsletter_opt_in: number;
+  newsletter_opt_in: boolean;
   ban_reason: string | null;
 }
 
-export function findUserByEmail(email: string): User | undefined {
-  return db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
+export function findUserByEmail(email: string) {
+  return queryOne<User>('SELECT * FROM users WHERE lower(email) = lower($1)', [email]);
 }
 
-export function findUserById(id: string): User | undefined {
-  return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
-}
-
-export function listAllUsers(): User[] {
-  return db.prepare('SELECT id, role, full_name, business_name, phone_number, email, approval_status, account_status, user_category, newsletter_opt_in, ban_reason, created_at FROM users ORDER BY role, full_name').all() as User[];
+export function findUserById(id: string) {
+  return queryOne<User>('SELECT * FROM users WHERE id = $1', [id]);
 }
 
 export function getOrderByReference(reference: string) {
-  return db.prepare('SELECT * FROM orders WHERE order_reference = ?').get(reference) as any;
+  return queryOne<any>('SELECT * FROM orders WHERE order_reference = $1', [reference]);
 }
 
-export function logEvent(orderId: string, eventType: string, payload: unknown) {
-  db.prepare(
-    `INSERT INTO transaction_events (id, order_id, event_type, payload) VALUES (?, ?, ?, ?)`
-  ).run(randomUUID(), orderId, eventType, JSON.stringify(payload));
+export async function logEvent(orderId: string, eventType: string, payload: unknown, client?: PoolClient) {
+  const runner = client ?? getPool();
+  await runner.query(
+    'INSERT INTO transaction_events (id, order_id, event_type, payload) VALUES ($1, $2, $3, $4::jsonb)',
+    [randomUUID(), orderId, eventType, JSON.stringify(payload ?? {})]
+  );
 }

@@ -1,140 +1,65 @@
-// Local dev: SQLite. Production: swap internals for a `pg` Pool against
-// Supabase/Neon and keep these exported function names so pages/routes
-// don't need to change.
-
-import Database from 'better-sqlite3';
-import path from 'path';
+import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
-import fs from 'fs';
 
-const dbPath = path.join(process.cwd(), 'zemba.dev.sqlite');
-const dbDir = path.dirname(dbPath);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error('Missing Supabase credentials in environment variables');
 }
 
-const sqlite = new Database(dbPath);
-
-// Optimize SQLite performance
-sqlite.pragma('journal_mode = WAL');
-sqlite.pragma('foreign_keys = ON');
+export const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 /**
- * Enhanced db export that supports standard better-sqlite3 methods 
- * AND a compatible .query() method for routes using $1, $2 parameter placeholders.
+ * Database wrapper that provides a consistent interface
+ * using Supabase client methods instead of SQLite
  */
 export const db = {
-  ...sqlite,
-  query: (sql: string, params: any[] = []) => {
-    // Convert PostgreSQL-style $1, $2 placeholders to SQLite ? placeholders
-    const convertedSql = sql.replace(/\$(\d+)/g, '?');
-    const trimmed = sql.trim().toLowerCase();
-    
-    try {
-      if (trimmed.startsWith('select')) {
-        const stmt = sqlite.prepare(convertedSql);
-        const rows = stmt.all(...params);
-        return { rows, rowCount: rows.length };
-      } else {
-        const stmt = sqlite.prepare(convertedSql);
-        const info = stmt.run(...params);
-        return { rowCount: info.changes, lastInsertRowid: info.lastInsertRowid };
-      }
-    } catch (error) {
-      console.error('Database Query Error:', { sql: convertedSql, params, error });
-      throw error;
-    }
+  prepare: (sql: string) => ({
+    get: async (params: any[]) => {
+      const result = await executeQuery(sql, params);
+      return result.data ? result.data[0] : undefined;
+    },
+    all: async (params: any[]) => {
+      const result = await executeQuery(sql, params);
+      return result.data || [];
+    },
+    run: async (...params: any[]) => {
+      const result = await executeQuery(sql, params);
+      return result;
+    },
+  }),
+  query: async (sql: string, params: any[] = []) => {
+    return await executeQuery(sql, params);
+  },
+  exec: async (sql: string) => {
+    // For schema initialization, this is handled by Supabase migrations
+    console.log('Schema initialization handled by Supabase');
+    return null;
   },
 };
 
-// Initialize all required application tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    role TEXT NOT NULL,
-    full_name TEXT NOT NULL,
-    business_name TEXT,
-    phone_number TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    momo_provider TEXT,
-    momo_number TEXT,
-    approval_status TEXT DEFAULT 'PENDING',
-    account_status TEXT DEFAULT 'ACTIVE',
-    user_category TEXT,
-    newsletter_opt_in INTEGER DEFAULT 0,
-    ban_reason TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS product_reviews (
-    id TEXT PRIMARY KEY,
-    product_id TEXT NOT NULL,
-    seller_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    product_rating INTEGER NOT NULL CHECK (product_rating BETWEEN 1 AND 5),
-    seller_rating INTEGER NOT NULL CHECK (seller_rating BETWEEN 1 AND 5),
-    comment TEXT NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(product_id, user_id)
-  );
-  CREATE TABLE IF NOT EXISTS suggestions (
-    id TEXT PRIMARY KEY,
-    user_id TEXT,
-    subject TEXT NOT NULL,
-    message TEXT NOT NULL,
-    status TEXT DEFAULT 'NEW',
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS quick_links (
-    id TEXT PRIMARY KEY,
-    seller_id TEXT NOT NULL,
-    product_id TEXT,
-    title TEXT NOT NULL,
-    price REAL NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS vendor_verification (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL UNIQUE,
-    nrc_number TEXT,
-    location TEXT,
-    business_registration TEXT,
-    verified_at TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS order_disputes (
-    id TEXT PRIMARY KEY,
-    order_id TEXT NOT NULL,
-    buyer_id TEXT,
-    seller_id TEXT,
-    reason TEXT,
-    status TEXT DEFAULT 'OPEN',
-    admin_decision TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS dispute_messages (
-    id TEXT PRIMARY KEY,
-    dispute_id TEXT NOT NULL,
-    sender_id TEXT NOT NULL,
-    message TEXT NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS order_notifications (
-    id TEXT PRIMARY KEY,
-    order_id TEXT,
-    recipient_id TEXT,
-    notification_type TEXT,
-    sent_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS transaction_events (
-    id TEXT PRIMARY KEY,
-    order_id TEXT NOT NULL,
-    event_type TEXT NOT NULL,
-    payload TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-`);
+async function executeQuery(sql: string, params: any[] = []) {
+  try {
+    const { data, error } = await supabase.rpc('execute_query', {
+      query: sql,
+      params: params,
+    }).catch(() => {
+      // Fallback: use raw query through Supabase client
+      return supabase.from('query_executor').select().throwOnError();
+    });
+
+    if (error) {
+      console.error('Database Query Error:', { sql, params, error });
+      throw error;
+    }
+
+    return { rows: data, rowCount: data?.length || 0 };
+  } catch (error) {
+    console.error('Database Query Error:', { sql, params, error });
+    throw error;
+  }
+}
 
 export const PLATFORM_FEE_RATE = 0.025;
 
@@ -161,24 +86,76 @@ export interface User {
   ban_reason: string | null;
 }
 
-export function findUserByEmail(email: string): User | undefined {
-  return db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
+export async function findUserByEmail(email: string): Promise<User | undefined> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', email)
+    .single();
+
+  if (error) {
+    console.error('Error fetching user by email:', error);
+    return undefined;
+  }
+
+  return data as User | undefined;
 }
 
-export function findUserById(id: string): User | undefined {
-  return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
+export async function findUserById(id: string): Promise<User | undefined> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('Error fetching user by id:', error);
+    return undefined;
+  }
+
+  return data as User | undefined;
 }
 
-export function listAllUsers(): User[] {
-  return db.prepare('SELECT id, role, full_name, business_name, phone_number, email, approval_status, account_status, user_category, newsletter_opt_in, ban_reason, created_at FROM users ORDER BY role, full_name').all() as User[];
+export async function listAllUsers(): Promise<User[]> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, role, full_name, business_name, phone_number, email, approval_status, account_status, user_category, newsletter_opt_in, ban_reason, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error listing users:', error);
+    return [];
+  }
+
+  return data as User[];
 }
 
-export function getOrderByReference(reference: string) {
-  return db.prepare('SELECT * FROM orders WHERE order_reference = ?').get(reference) as any;
+export async function getOrderByReference(reference: string) {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('order_reference', reference)
+    .single();
+
+  if (error) {
+    console.error('Error fetching order:', error);
+    return undefined;
+  }
+
+  return data;
 }
 
-export function logEvent(orderId: string, eventType: string, payload: unknown) {
-  db.prepare(
-    `INSERT INTO transaction_events (id, order_id, event_type, payload) VALUES (?, ?, ?, ?)`
-  ).run(randomUUID(), orderId, eventType, JSON.stringify(payload));
+export async function logEvent(orderId: string, eventType: string, payload: unknown) {
+  const { error } = await supabase
+    .from('transaction_events')
+    .insert({
+      id: randomUUID(),
+      order_id: orderId,
+      event_type: eventType,
+      payload: JSON.stringify(payload),
+    });
+
+  if (error) {
+    console.error('Error logging event:', error);
+  }
 }

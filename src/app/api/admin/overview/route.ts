@@ -1,55 +1,57 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
+import { query, queryOne } from '@/lib/db';
+import { requireUser } from '@/lib/auth';
+import { handleError } from '@/lib/http';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireUser(req, ['admin']);
+  if ('res' in auth) return auth.res;
   try {
-    const users = db.prepare(`
-      SELECT users.id, users.role, users.full_name, users.business_name, users.email, users.phone_number, users.approval_status, users.account_status, users.user_category, users.newsletter_opt_in, users.ban_reason, users.created_at, 
-             vendor_verification.nrc_number, vendor_verification.location
-      FROM users 
-      LEFT JOIN vendor_verification ON users.id = vendor_verification.user_id
-      ORDER BY users.created_at DESC
-    `).all();
+    const [users, products, orders, disputes, events, announcements, subscribers] = await Promise.all([
+      query(`
+        SELECT u.id, u.role, u.full_name, u.business_name, u.email, u.phone_number, u.approval_status,
+               u.account_status, u.user_category, u.newsletter_opt_in, u.ban_reason, u.created_at,
+               v.nrc_number, v.location
+        FROM users u LEFT JOIN vendor_verification v ON u.id = v.user_id
+        ORDER BY u.created_at DESC`),
+      query(`
+        SELECT p.*, u.business_name, u.full_name AS seller_name
+        FROM products p JOIN users u ON u.id = p.seller_id
+        ORDER BY p.created_at DESC`),
+      query(`
+        SELECT o.id, o.order_reference, o.customer_id, o.seller_id, o.product_id, o.quantity, o.amount,
+               o.platform_fee, o.net_amount, o.status, o.waybill_image_url, o.timeout_days, o.created_at,
+               p.title, u.business_name, u.full_name AS seller_name
+        FROM orders o
+        LEFT JOIN products p ON p.id = o.product_id
+        LEFT JOIN users u ON u.id = o.seller_id
+        ORDER BY o.created_at DESC LIMIT 200`),
+      query(`
+        SELECT d.*, o.order_reference, o.status AS order_status
+        FROM disputes d JOIN orders o ON o.id = d.order_id
+        ORDER BY d.created_at DESC`),
+      query(`
+        SELECT e.*, o.order_reference
+        FROM transaction_events e JOIN orders o ON o.id = e.order_id
+        ORDER BY e.created_at DESC LIMIT 100`),
+      query('SELECT * FROM announcements ORDER BY created_at DESC LIMIT 50'),
+      queryOne<{ count: number }>(
+        "SELECT COUNT(*) AS count FROM users WHERE newsletter_opt_in = true AND account_status = 'ACTIVE'"
+      ),
+    ]);
 
-    const products = db.prepare(`
-      SELECT products.*, users.business_name, users.full_name as seller_name
-      FROM products JOIN users ON users.id = products.seller_id ORDER BY products.created_at DESC
-    `).all();
-
-    const orders = db.prepare(`
-      SELECT orders.*, products.title, users.business_name, users.full_name as seller_name
-      FROM orders LEFT JOIN products ON products.id = orders.product_id
-      LEFT JOIN users ON users.id = orders.seller_id ORDER BY orders.created_at DESC LIMIT 200
-    `).all();
-
-    const disputes = db.prepare(`
-      SELECT disputes.*, orders.order_reference, orders.status as order_status
-      FROM disputes JOIN orders ON orders.id = disputes.order_id ORDER BY disputes.created_at DESC
-    `).all();
-
-    const events = db.prepare(`
-      SELECT transaction_events.*, orders.order_reference
-      FROM transaction_events JOIN orders ON orders.id = transaction_events.order_id
-      ORDER BY transaction_events.created_at DESC LIMIT 100
-    `).all();
-
-    const announcements = db.prepare('SELECT * FROM announcements ORDER BY created_at DESC LIMIT 50').all();
-    
-    const newsletterSubscribers = db.prepare("SELECT COUNT(*) as count FROM users WHERE newsletter_opt_in = 1 AND account_status = 'ACTIVE'").get() as { count: number };
-
-    return NextResponse.json({ 
-      users, 
-      products, 
-      orders, 
-      disputes, 
-      events, 
-      announcements, 
-      newsletterSubscribers: newsletterSubscribers.count 
+    return NextResponse.json({
+      users,
+      products,
+      orders,
+      disputes,
+      events,
+      announcements,
+      newsletterSubscribers: subscribers?.count ?? 0,
     });
-  } catch (error: any) {
-    console.error('Admin overview error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  } catch (error) {
+    return handleError(error);
   }
 }

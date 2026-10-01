@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db, logEvent } from '@/lib/db';
+import { supabase, logEvent } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,19 +12,46 @@ export async function POST(req: NextRequest) {
     }
 
     const table = entity === 'user' ? 'users' : 'products';
-    const row = db.prepare(`SELECT id${entity === 'product' ? ', seller_id' : ''} FROM ${table} WHERE id = ?`).get(id) as any;
     
-    if (!row) {
+    // Fetch the row to check if it exists
+    const { data: row, error: fetchError } = await supabase
+      .from(table)
+      .select(entity === 'product' ? 'id, seller_id' : 'id')
+      .eq('id', id)
+      .maybeSingle();
+    
+    if (fetchError || !row) {
       return NextResponse.json({ error: `${entity} not found` }, { status: 404 });
     }
 
-    db.prepare(`UPDATE ${table} SET approval_status = ? WHERE id = ?`).run(decision, id);
+    // Update approval status
+    const { error: updateError } = await supabase
+      .from(table)
+      .update({ approval_status: decision })
+      .eq('id', id);
+
+    if (updateError) {
+      throw updateError;
+    }
 
     if (entity === 'product' && row.seller_id) {
-      db.prepare(`UPDATE products SET status = CASE WHEN ? = 'APPROVED' THEN 'ACTIVE' ELSE 'PAUSED' END WHERE id = ?`).run(decision, id);
-      const eventOrder = db.prepare('SELECT id FROM orders WHERE product_id = ? ORDER BY created_at DESC LIMIT 1').get(id) as { id: string } | undefined;
+      // Update product status
+      await supabase
+        .from('products')
+        .update({ status: decision === 'APPROVED' ? 'ACTIVE' : 'PAUSED' })
+        .eq('id', id);
+
+      // Find related order and log event
+      const { data: eventOrder } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('product_id', id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       if (eventOrder) {
-        logEvent(eventOrder.id, 'PRODUCT_APPROVAL_UPDATED', { product_id: id, decision });
+        await logEvent(eventOrder.id, 'PRODUCT_APPROVAL_UPDATED', { product_id: id, decision });
       }
     }
 

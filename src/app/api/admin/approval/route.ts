@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     // Fetch the row to check if it exists
     const { data: row, error: fetchError } = await supabase
       .from(table)
-      .select(entity === 'product' ? 'id, seller_id' : 'id')
+      .select('id' + (entity === 'product' ? ', seller_id' : ''))
       .eq('id', id)
       .maybeSingle();
     
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       throw updateError;
     }
 
-    if (entity === 'product' && row.seller_id) {
+    if (entity === 'product' && (row as any).seller_id) {
       // Update product status
       await supabase
         .from('products')

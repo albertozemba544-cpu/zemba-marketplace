@@ -1,33 +1,47 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { randomUUID } from 'crypto';
+import { supabase } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
     const { subject, body, audience } = await req.json();
-    
+
     if (!subject || !body) {
-      return NextResponse.json({ error: 'Subject and message are required' }, { status: 400 });
+      return NextResponse.json({ error: 'subject and body are required' }, { status: 400 });
     }
 
-    const id = randomUUID();
-    
-    // Insert announcement into database
-    db.prepare('INSERT INTO announcements (id, subject, body, audience) VALUES (?, ?, ?, ?)').run(
-      id, 
-      subject, 
-      body, 
-      audience || 'ALL'
-    );
-    
+    const { data: announcement, error: insertError } = await supabase
+      .from('announcements')
+      .insert({
+        subject,
+        body,
+        audience: audience || 'ALL',
+        created_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      throw insertError;
+    }
+
     // Count active recipients opted into newsletters
-    const recipients = db.prepare("SELECT COUNT(*) as count FROM users WHERE newsletter_opt_in = 1 AND account_status = 'ACTIVE'").get() as { count: number };
-    
-    return NextResponse.json({ ok: true, id, recipientCount: recipients.count }, { status: 201 });
+    const { data: recipientData, error: countError } = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true })
+      .eq('newsletter_opt_in', true)
+      .eq('account_status', 'ACTIVE');
+
+    if (countError) {
+      console.error('Error counting recipients:', countError);
+    }
+
+    const recipientCount = recipientData?.length || 0;
+
+    return NextResponse.json({ ok: true, id: announcement.id, recipientCount }, { status: 201 });
   } catch (error: any) {
-    console.error('Announcements API Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    console.error('Announcement error:', error);
+    return NextResponse.json({ error: error.message || 'Unable to save announcement' }, { status: 500 });
   }
 }

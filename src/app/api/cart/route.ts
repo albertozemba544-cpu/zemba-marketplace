@@ -1,38 +1,67 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { randomUUID } from 'crypto';
+import { execute, query, queryOne } from '@/lib/db';
+import { requireUser } from '@/lib/auth';
+import { fail, handleError, isUuid } from '@/lib/http';
 
 export async function GET(req: NextRequest) {
-  const customerId = req.nextUrl.searchParams.get('customer_id');
-  if (!customerId) return NextResponse.json({ error: 'customer_id required' }, { status: 400 });
-
-  const items = db.prepare(`
-    SELECT cart_items.id as cart_item_id, cart_items.quantity, products.*
-    FROM cart_items JOIN products ON products.id = cart_items.product_id
-    WHERE cart_items.customer_id = ?
-  `).all(customerId) as any[];
-
-  return NextResponse.json({ items });
+  const auth = await requireUser(req, ['customer']);
+  if ('res' in auth) return auth.res;
+  try {
+    const items = await query(
+      `SELECT c.id AS cart_item_id, c.quantity, p.*
+       FROM cart_items c JOIN products p ON p.id = c.product_id
+       WHERE c.customer_id = $1
+       ORDER BY c.created_at ASC`,
+      [auth.user.id]
+    );
+    return NextResponse.json({ items });
+  } catch (error) {
+    return handleError(error);
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const { customer_id, product_id, quantity } = await req.json();
-  if (!customer_id || !product_id) {
-    return NextResponse.json({ error: 'customer_id and product_id required' }, { status: 400 });
+  const auth = await requireUser(req, ['customer']);
+  if ('res' in auth) return auth.res;
+  try {
+    const { product_id, quantity } = await req.json();
+    const qty = Number(quantity ?? 1);
+    if (!isUuid(product_id) || !Number.isInteger(qty) || qty < 1 || qty > 99) {
+      return fail('A valid product and quantity are required');
+    }
+
+    const product = await queryOne<{ stock: number }>(
+      `SELECT stock FROM products
+       WHERE id = $1 AND approval_status = 'APPROVED' AND status IN ('ACTIVE', 'LINK_ONLY')`,
+      [product_id]
+    );
+    if (!product) return fail('This product is not available', 404);
+    if (product.stock < 1) return fail('This product is sold out', 409);
+
+    await execute(
+      `INSERT INTO cart_items (customer_id, product_id, quantity)
+       VALUES ($1, $2, LEAST($3::int, $4::int))
+       ON CONFLICT (customer_id, product_id)
+       DO UPDATE SET quantity = LEAST(cart_items.quantity + $3::int, $4::int)`,
+      [auth.user.id, product_id, qty, product.stock]
+    );
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return handleError(error);
   }
-  const existing = db.prepare('SELECT * FROM cart_items WHERE customer_id = ? AND product_id = ?').get(customer_id, product_id) as any;
-  if (existing) {
-    db.prepare('UPDATE cart_items SET quantity = quantity + ? WHERE id = ?').run(quantity ?? 1, existing.id);
-  } else {
-    db.prepare('INSERT INTO cart_items (id, customer_id, product_id, quantity) VALUES (?, ?, ?, ?)')
-      .run(randomUUID(), customer_id, product_id, quantity ?? 1);
-  }
-  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(req: NextRequest) {
-  const cartItemId = req.nextUrl.searchParams.get('cart_item_id');
-  if (!cartItemId) return NextResponse.json({ error: 'cart_item_id required' }, { status: 400 });
-  db.prepare('DELETE FROM cart_items WHERE id = ?').run(cartItemId);
-  return NextResponse.json({ ok: true });
+  const auth = await requireUser(req, ['customer']);
+  if ('res' in auth) return auth.res;
+  try {
+    const cartItemId = req.nextUrl.searchParams.get('cart_item_id');
+    if (!isUuid(cartItemId)) return fail('cart_item_id required');
+    await execute('DELETE FROM cart_items WHERE id = $1 AND customer_id = $2', [cartItemId, auth.user.id]);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return handleError(error);
+  }
 }

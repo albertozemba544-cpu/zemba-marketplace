@@ -1,9 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-// POST /api/auth/login
-// The session is intentionally simple for this local demo. Passwords are
-// still verified with bcrypt so plaintext credentials never need to be stored.
-
 import bcrypt from 'bcrypt';
 import { NextRequest, NextResponse } from 'next/server';
 import { findUserByEmail } from '@/lib/db';
@@ -11,7 +7,7 @@ import { findUserByEmail } from '@/lib/db';
 export async function POST(req: NextRequest) {
   try {
     const { email, password, role } = await req.json();
-    const user = findUserByEmail(email);
+    const user = await findUserByEmail(email);
 
     const isMatch = user ? await bcrypt.compare(password, user.password_hash) : false;
     if (!user || !isMatch || user.role !== role) {

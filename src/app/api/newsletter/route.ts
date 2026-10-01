@@ -1,15 +1,27 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { execute, queryOne } from '@/lib/db';
+import { optionalUser } from '@/lib/auth';
+import { fail, handleError } from '@/lib/http';
 
 export async function POST(req: NextRequest) {
-  const { email, user_id, subscribed } = await req.json();
-  if (user_id) {
-    db.prepare('UPDATE users SET newsletter_opt_in = ? WHERE id = ?').run(subscribed === false ? 0 : 1, user_id);
+  try {
+    const { email, subscribed } = await req.json();
+
+    // A logged-in user changes their own preference.
+    const current = await optionalUser(req);
+    if (current) {
+      await execute('UPDATE users SET newsletter_opt_in = $1 WHERE id = $2', [subscribed !== false, current.id]);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email)) return fail('A valid email is required');
+    const user = await queryOne<{ id: string }>('SELECT id FROM users WHERE lower(email) = lower($1)', [email.trim()]);
+    if (!user) return fail('Create an account to receive Zemba updates', 404);
+    await execute('UPDATE users SET newsletter_opt_in = true WHERE id = $1', [user.id]);
     return NextResponse.json({ ok: true });
+  } catch (error) {
+    return handleError(error);
   }
-  if (!email || !/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: 'A valid email is required' }, { status: 400 });
-  const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: string } | undefined;
-  if (!user) return NextResponse.json({ error: 'Create an account to receive Zemba updates' }, { status: 404 });
-  db.prepare('UPDATE users SET newsletter_opt_in = 1 WHERE id = ?').run(user.id);
-  return NextResponse.json({ ok: true });
 }

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,13 +11,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Valid user status and category are required' }, { status: 400 });
     }
 
-    const result = db.prepare(`
-      UPDATE users 
-      SET account_status = ?, user_category = ?, ban_reason = ? 
-      WHERE id = ? AND role != 'admin'
-    `).run(account_status, user_category, ban_reason || null, user_id);
+    const { error } = await supabase
+      .from('users')
+      .update({
+        account_status,
+        user_category,
+        ban_reason: ban_reason || null,
+      })
+      .eq('id', user_id)
+      .neq('role', 'admin');
 
-    if (!result.changes) {
+    if (error) {
       return NextResponse.json({ error: 'User not found or admin accounts cannot be moderated' }, { status: 404 });
     }
 

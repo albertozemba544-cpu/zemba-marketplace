@@ -1,19 +1,19 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/db';
 
 export async function GET(req: NextRequest, { params }: { params: { reference: string } }) {
   const { reference } = params;
 
   try {
-    const order = db.prepare(`
-      SELECT orders.*, products.title, users.business_name, users.full_name as seller_name
-      FROM orders
-      LEFT JOIN products ON products.id = orders.product_id
-      LEFT JOIN users ON users.id = orders.seller_id
-      WHERE orders.order_reference = ?
-    `).get(reference);
+    const { data: order, error } = await supabase
+      .from('orders')
+      .select('*, products(title), users(business_name, full_name)')
+      .eq('order_reference', reference)
+      .maybeSingle();
 
-    if (!order) {
+    if (error || !order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 

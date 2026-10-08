@@ -4,9 +4,9 @@
 export const SITE = {
   name: 'Zemba Marketplace',
   description: 'Escrow-backed marketplace for Zambia — buy, sell, and never get scammed.',
-  phone: '', // e.g. '+260 97 123 4567'
-  whatsapp: '', // digits only, with country code, e.g. '260971234567'
-  email: '', // e.g. 'support@yourdomain.com'
+  phone: '+260 77 190 2162', // e.g. '+260 97 123 4567'
+  whatsapp: '260771902162', // digits only, with country code, e.g. '260971234567'
+  email: 'albertozemba11@gmail.com', // e.g. 'support@yourdomain.com'
   hours: 'Monday to Saturday, 08:00 – 17:00 (CAT)',
   location: 'Zambia',
 
@@ -23,7 +23,7 @@ export const SITE = {
 /** The public address of the website, e.g. https://zemba-marketplace.vercel.app */
 export function siteUrl(req?: { nextUrl?: { origin: string } }): string {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (configured) return configured.replace(/\/$/, '');
+  if (configured) return configured.replace(/\/\$/, '');
   const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
   if (vercelHost) return `https://${vercelHost}`;
   return req?.nextUrl?.origin ?? 'http://localhost:3000';

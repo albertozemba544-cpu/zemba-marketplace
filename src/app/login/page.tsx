@@ -33,6 +33,7 @@ export default function CustomerLogin() {
     <>
       <SkyBackground mode="ambient" />
       <div className="zemba-auth-wrap">
+        <a href="/" className="zemba-auth-home">← Back to home</a>
         <div className="zemba-card zemba-auth-card">
           <h1>Welcome back</h1>
           <p className="sub">Log in to browse and track your orders.</p>
@@ -44,8 +45,8 @@ export default function CustomerLogin() {
               {loading ? 'Logging in…' : 'Log in'}
             </button>
           </form>
+          <p className="zemba-auth-demo"><a href="/forgot-password">Forgot your password?</a></p>
           <p className="zemba-auth-demo"><a href="/register">Create a buyer account</a></p>
-          <p className="zemba-auth-demo">Demo: customer@zemba.demo / demo1234</p>
           <p className="zemba-auth-demo">
             Selling instead? <a href="/seller/login" style={{ textDecoration: 'underline' }}>Seller login</a>
           </p>

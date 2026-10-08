@@ -9,6 +9,7 @@ export default function AdminUsers() {
 
   async function loadUsers() {
     const response = await fetch('/api/admin/overview');
+    if (response.status === 401 || response.status === 403) { window.location.href = '/admin/login'; return; }
     setUsers((await response.json()).users || []);
   }
   useEffect(() => { loadUsers(); }, []);
@@ -25,7 +26,7 @@ export default function AdminUsers() {
   }
 
   return (
-    <><SkyBackground mode="ambient" /><div className="zemba-page"><nav className="zemba-nav"><a href="/admin/dashboard" className="brand">Zemba Marketplace — Admin</a><div><a href="/admin/dashboard">Overview</a><a href="/admin/disputes">Disputes</a></div></nav>
+    <><SkyBackground mode="ambient" /><div className="zemba-page"><nav className="zemba-nav"><a href="/admin/dashboard" className="brand">Zemba Marketplace — Admin</a><div><a href="/admin/dashboard">Overview</a><a href="/admin/orders">Stuck orders</a><a href="/admin/payouts">Money to move</a><a href="/admin/disputes">Disputes</a><a href="/admin/messages">Messages</a></div></nav>
       <main style={{ position: 'relative', zIndex: 1, maxWidth: 1000, margin: '1.5rem auto', padding: '0 1.5rem 4rem' }}><div className="zemba-card" style={{ padding: '1.5rem' }}>
         <h3 style={{ color: '#fff', margin: '0 0 0.3rem' }}>People &amp; moderation</h3><p style={{ color: 'rgba(255,255,255,0.7)' }}>Categorize every account and control who can participate on Zemba.</p>{message && <p style={{ color: '#FFD37A' }}>{message}</p>}
         <div style={{ overflowX: 'auto' }}><table className="zemba-table"><thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Category</th><th>Status</th><th>Newsletter</th><th>Actions</th></tr></thead><tbody>

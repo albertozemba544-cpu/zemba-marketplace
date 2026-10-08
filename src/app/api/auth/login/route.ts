@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { findUserByEmail } from '@/lib/db';
 import { setSessionCookie } from '@/lib/auth';
+import { isEmailConfigured } from '@/lib/notify';
 import { fail, handleError } from '@/lib/http';
 
 export async function POST(req: NextRequest) {
@@ -16,6 +17,10 @@ export async function POST(req: NextRequest) {
     const isMatch = user ? await bcrypt.compare(password, user.password_hash) : false;
     if (!user || !isMatch || user.role !== role) {
       return fail('Invalid email or password for this login type', 401);
+    }
+    const verifiedAt = (user as { email_verified_at?: string | null }).email_verified_at;
+    if (!verifiedAt && user.role !== 'admin' && isEmailConfigured()) {
+      return fail('Please confirm your email first. Check your inbox for the link, or request a new one on the "Confirm your email" page.', 403);
     }
     if (user.approval_status !== 'APPROVED') {
       return fail(`This account is ${user.approval_status.toLowerCase()}. An admin must approve it before login.`, 403);

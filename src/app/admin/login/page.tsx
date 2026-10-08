@@ -33,6 +33,7 @@ export default function AdminLogin() {
     <>
       <SkyBackground mode="ambient" />
       <div className="zemba-auth-wrap">
+        <a href="/" className="zemba-auth-home">← Back to home</a>
         <div className="zemba-card zemba-auth-card">
           <h1>Admin console</h1>
           <p className="sub">Platform oversight — users, disputes, activity.</p>
@@ -44,7 +45,7 @@ export default function AdminLogin() {
               {loading ? 'Logging in…' : 'Log in'}
             </button>
           </form>
-          <p className="zemba-auth-demo">Demo: admin@zemba.demo / demo1234</p>
+          <p className="zemba-auth-demo"><a href="/forgot-password">Forgot your password?</a></p>
         </div>
       </div>
     </>

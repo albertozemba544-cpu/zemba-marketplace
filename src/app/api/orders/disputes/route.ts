@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logEvent, query, queryOne, withTransaction } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { fail, handleError } from '@/lib/http';
+import { createNotification } from '@/lib/orders';
 
 const DISPUTABLE = ['FUNDS_SECURED', 'DISPATCHED', 'PENDING_ADMIN_REVIEW'];
 
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
     if (!order_id || !text) return fail('order_id and reason are required');
 
     const order = await queryOne<any>(
-      'SELECT id, status FROM orders WHERE (id::text = $1 OR order_reference = $1) AND customer_id = $2',
+      'SELECT id, status, seller_id FROM orders WHERE (id::text = $1 OR order_reference = $1) AND customer_id = $2',
       [String(order_id), auth.user.id]
     );
     if (!order) return fail('Order not found', 404);
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
       await logEvent(order.id, 'BUYER_DISPUTE_OPENED', { dispute_id: inserted.rows[0].id, reason: text }, client);
       return inserted.rows[0].id as string;
     });
+    if (order.seller_id) await createNotification(order.id, order.seller_id, 'DISPUTE_OPENED').catch(() => null);
     return NextResponse.json({ dispute_id: disputeId, ok: true }, { status: 201 });
   } catch (error) {
     return handleError(error, 'Unable to create dispute');

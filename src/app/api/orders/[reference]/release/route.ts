@@ -23,7 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: { reference: 
 
     const released = await withTransaction(async (client) => {
       const updated = await client.query(
-        `UPDATE orders SET status = 'COMPLETED', updated_at = now()
+        `UPDATE orders SET status = 'COMPLETED', payout_status = 'DUE', updated_at = now()
          WHERE id = $1 AND status IN ('FUNDS_SECURED', 'DISPATCHED')`,
         [order.id]
       );
@@ -35,7 +35,6 @@ export async function POST(req: NextRequest, { params }: { params: { reference: 
 
     if (order.seller_id) await createNotification(order.id, order.seller_id, 'DELIVERY_CONFIRMED').catch(() => null);
     await createNotification(order.id, order.customer_id, 'COMPLETED').catch(() => null);
-    // TODO: call the gateway's payout API to send order.net_amount to the seller's momo_number.
 
     return NextResponse.json({ status: 'COMPLETED', net_amount: order.net_amount });
   } catch (error) {

@@ -33,6 +33,7 @@ export default function QuickPayPage() {
       body: JSON.stringify({ customer_id: user.id, product_id: link?.product_id || link?.id, quantity }),
     });
     if (response.ok) window.location.href = '/cart';
+    else setError((await response.json().catch(() => ({}))).error || 'Could not add this item to your cart');
   }
 
   return (

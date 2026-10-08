@@ -1,24 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import SkyBackground from '@/components/SkyBackground';
 
 export default function RegisterPage() {
   const [role, setRole] = useState<'customer' | 'seller'>('customer');
   const [form, setForm] = useState({ full_name: '', business_name: '', phone_number: '', email: '', password: '', momo_provider: 'MTN', momo_number: '', nrc_number: '', location: '' });
   const [message, setMessage] = useState('');
+  const [agree, setAgree] = useState(false);
+  const [news, setNews] = useState(false);
+  const [wa, setWa] = useState(false);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('role') === 'seller') setRole('seller');
+  }, []);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (!agree) { setMessage('Please accept the Terms of Use, Privacy Policy and Refund Policy.'); return; }
     setMessage('Creating account...');
-    const response = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, role }) });
+    const response = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, role, accept_terms: agree, newsletter_opt_in: news, whatsapp_opt_in: wa }) });
     const data = await response.json();
-    setMessage(response.ok ? 'Account created. An admin must approve it before you can log in.' : data.error || 'Could not create account.');
+    const confirm = data.needs_verification ? ' We emailed you a link - please confirm your email address first.' : '';
+    setMessage(response.ok ? (role === 'seller' ? 'Seller account created.' + confirm + ' An admin must also approve it before you can log in.' : 'Account created.' + (confirm || ' You can log in now.')) : data.error || 'Could not create account.');
     if (response.ok) setForm({ full_name: '', business_name: '', phone_number: '', email: '', password: '', momo_provider: 'MTN', momo_number: '', nrc_number: '', location: '' });
   }
 
   return (
-    <><SkyBackground mode="ambient" /><div className="zemba-auth-wrap"><div className="zemba-card zemba-auth-card">
+    <><SkyBackground mode="ambient" /><div className="zemba-auth-wrap">
+        <a href="/" className="zemba-auth-home">← Back to home</a><div className="zemba-card zemba-auth-card">
       <h1>Create your Zemba account</h1><p className="sub">Join as a buyer or apply to sell on the marketplace.</p>
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
         <button type="button" className="zemba-btn zemba-btn-secondary" onClick={() => setRole('customer')} style={{ opacity: role === 'customer' ? 1 : 0.6 }}>Buyer</button>
@@ -46,6 +56,9 @@ export default function RegisterPage() {
         )}
         {role === 'seller' && <><input className="zemba-input" placeholder="Mobile money number" value={form.momo_number} onChange={(e) => setForm({ ...form, momo_number: e.target.value })} required /><select className="zemba-input" value={form.momo_provider} onChange={(e) => setForm({ ...form, momo_provider: e.target.value })}><option value="MTN">MTN</option><option value="AIRTEL">Airtel</option></select></>}
         <input className="zemba-input" type="password" placeholder="Password (8+ characters)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} minLength={8} required />
+        <label className="zemba-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} required /><span>I am 18 or older and I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Use</a>, <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="/refund-policy" target="_blank" rel="noopener noreferrer">Refund Policy</a>.</span></label>
+        <label className="zemba-check"><input type="checkbox" checked={news} onChange={(e) => setNews(e.target.checked)} /><span>Send me news and offers from Zemba (optional).</span></label>
+        <label className="zemba-check"><input type="checkbox" checked={wa} onChange={(e) => setWa(e.target.checked)} /><span>Send my order updates to my phone on WhatsApp (optional).</span></label>
         <button className="zemba-btn zemba-btn-primary" style={{ width: '100%' }}>Create account</button>
       </form>
       {message && <p className="zemba-auth-demo">{message}</p>}

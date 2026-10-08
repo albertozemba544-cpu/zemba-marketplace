@@ -3,6 +3,7 @@
 
 import { Pool, PoolClient, types } from 'pg';
 import { randomUUID } from 'crypto';
+import { SITE } from './site';
 
 // Postgres returns DECIMAL and COUNT() as strings. The pages expect numbers.
 types.setTypeParser(1700, (value: string) => parseFloat(value)); // numeric / decimal
@@ -70,7 +71,7 @@ export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>)
   }
 }
 
-export const PLATFORM_FEE_RATE = 0.025;
+export const PLATFORM_FEE_RATE = SITE.feePercent / 100;
 
 export function computeFees(amount: number) {
   const platform_fee = Math.round(amount * PLATFORM_FEE_RATE * 100) / 100;
@@ -93,6 +94,7 @@ export interface User {
   user_category: string;
   newsletter_opt_in: boolean;
   ban_reason: string | null;
+  email_verified_at: string | null;
 }
 
 export function findUserByEmail(email: string) {

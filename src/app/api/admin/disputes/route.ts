@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne, withTransaction, logEvent } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
+import { notifySettlement, settleOrder } from '@/lib/orders';
 import { fail, handleError, isUuid } from '@/lib/http';
 
 export async function GET(req: NextRequest) {
@@ -44,18 +45,18 @@ export async function POST(req: NextRequest) {
     if (!dispute) return fail('Dispute not found', 404);
     if (dispute.status !== 'OPEN') return fail('This dispute has already been resolved', 409);
 
-    const orderStatus = resolution === 'refund' ? 'REFUNDED' : 'COMPLETED';
     const disputeStatus = resolution === 'refund' ? 'RESOLVED_REFUND' : 'RESOLVED_RELEASE';
 
-    await withTransaction(async (client) => {
-      await client.query('UPDATE orders SET status = $1, updated_at = now() WHERE id = $2', [orderStatus, dispute.order_id]);
+    const settled = await withTransaction(async (client) => {
+      const order = await settleOrder(client, dispute.order_id, resolution);
       await client.query(
         'UPDATE disputes SET status = $1, admin_notes = $2, resolved_at = now() WHERE id = $3',
         [disputeStatus, String(admin_notes || '').slice(0, 2000), dispute_id]
       );
       await logEvent(dispute.order_id, 'DISPUTE_RESOLVED', { resolution, admin_notes }, client);
+      return order;
     });
-    // TODO: call the payment gateway here to actually refund the buyer or pay the seller.
+    if (settled) await notifySettlement(settled, resolution);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

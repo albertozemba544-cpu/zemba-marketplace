@@ -33,6 +33,7 @@ export default function SellerLogin() {
     <>
       <SkyBackground mode="ambient" />
       <div className="zemba-auth-wrap">
+        <a href="/" className="zemba-auth-home">← Back to home</a>
         <div className="zemba-card zemba-auth-card">
           <h1>Seller sign in</h1>
           <p className="sub">Manage your listings, orders and payouts.</p>
@@ -44,8 +45,8 @@ export default function SellerLogin() {
               {loading ? 'Logging in…' : 'Log in'}
             </button>
           </form>
+          <p className="zemba-auth-demo"><a href="/forgot-password">Forgot your password?</a></p>
           <p className="zemba-auth-demo"><a href="/register">Create a seller account</a></p>
-          <p className="zemba-auth-demo">Demo: seller@zemba.demo / demo1234</p>
           <p className="zemba-auth-demo">
             Shopping instead? <a href="/login" style={{ textDecoration: 'underline' }}>Customer login</a>
           </p>

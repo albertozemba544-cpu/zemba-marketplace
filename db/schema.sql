@@ -1,9 +1,11 @@
 -- ZEMBA MARKETPLACE - complete schema for Supabase (PostgreSQL)
--- Safe to run more than once.
+-- Paste this whole file into Supabase -> SQL Editor -> New query -> Run.
+-- It is safe to run more than once, and it also upgrades tables you already created.
 
+-- ---------- core tables ----------
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  role VARCHAR(20) NOT NULL,
+  role VARCHAR(20) NOT NULL,                     -- customer | seller | admin
   full_name VARCHAR(255) NOT NULL,
   business_name VARCHAR(255),
   phone_number VARCHAR(20) UNIQUE NOT NULL,
@@ -11,8 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL,
   momo_provider VARCHAR(50),
   momo_number VARCHAR(20),
-  approval_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-  account_status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+  approval_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',   -- PENDING | APPROVED | REJECTED
+  account_status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',     -- ACTIVE | SUSPENDED | BANNED
   user_category VARCHAR(30) NOT NULL DEFAULT 'CUSTOMER',
   newsletter_opt_in BOOLEAN NOT NULL DEFAULT TRUE,
   ban_reason TEXT,
@@ -37,8 +39,8 @@ CREATE TABLE IF NOT EXISTS products (
   category VARCHAR(100),
   stock INTEGER DEFAULT 1,
   image_url TEXT,
-  approval_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-  status VARCHAR(20) DEFAULT 'ACTIVE',
+  approval_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',   -- PENDING | APPROVED | REJECTED
+  status VARCHAR(20) DEFAULT 'ACTIVE',                      -- ACTIVE | PAUSED | REMOVED | LINK_ONLY
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -61,6 +63,7 @@ CREATE TABLE IF NOT EXISTS orders (
   platform_fee DECIMAL(12, 2) NOT NULL,
   net_amount DECIMAL(12, 2) NOT NULL,
   status VARCHAR(30) DEFAULT 'PENDING_PAYMENT',
+  -- PENDING_PAYMENT | FUNDS_SECURED | DISPATCHED | PENDING_ADMIN_REVIEW | COMPLETED | REFUNDED | DISPUTED
   gateway_transaction_id VARCHAR(255),
   delivery_code VARCHAR(10),
   waybill_image_url TEXT,
@@ -83,7 +86,7 @@ CREATE TABLE IF NOT EXISTS disputes (
   order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
   raised_by UUID REFERENCES users(id),
   reason TEXT NOT NULL,
-  status VARCHAR(20) DEFAULT 'OPEN',
+  status VARCHAR(20) DEFAULT 'OPEN',                        -- OPEN | RESOLVED_REFUND | RESOLVED_RELEASE
   admin_notes TEXT,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   resolved_at TIMESTAMPTZ
@@ -97,6 +100,7 @@ CREATE TABLE IF NOT EXISTS announcements (
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ---------- tables the website needs that the old schema was missing ----------
 CREATE TABLE IF NOT EXISTS vendor_verification (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
@@ -129,7 +133,7 @@ CREATE TABLE IF NOT EXISTS suggestions (
 );
 
 CREATE TABLE IF NOT EXISTS quick_links (
-  id TEXT PRIMARY KEY,
+  id TEXT PRIMARY KEY,                                      -- short code such as 3F9A12BC
   seller_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
   title VARCHAR(255) NOT NULL,
@@ -155,6 +159,7 @@ CREATE TABLE IF NOT EXISTS order_notifications (
   UNIQUE (order_id, recipient_id, notification_type)
 );
 
+-- ---------- indexes ----------
 CREATE INDEX IF NOT EXISTS idx_products_seller ON products(seller_id);
 CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_orders_seller ON orders(seller_id);
@@ -163,8 +168,10 @@ CREATE INDEX IF NOT EXISTS idx_disputes_status ON disputes(status);
 CREATE INDEX IF NOT EXISTS idx_dispute_messages_dispute ON dispute_messages(dispute_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_cart_customer_product ON cart_items(customer_id, product_id);
 
--- Lock every table from Supabase's public API (password hashes live in "users").
--- The website connects with the database password, which is not affected.
+-- ---------- security ----------
+-- Lock every table so nobody can read it through Supabase's public REST API
+-- (password hashes live in "users"). The website itself connects with the
+-- database password, which is not affected by this.
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE login_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
@@ -180,7 +187,9 @@ ALTER TABLE quick_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dispute_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_notifications ENABLE ROW LEVEL SECURITY;
 
--- Public bucket for product photos and dispatch proof.
+-- ---------- image storage ----------
+-- Public bucket for product photos and dispatch proof. Uploads happen on the
+-- server with the service role key.
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('zemba-uploads', 'zemba-uploads', true)
 ON CONFLICT (id) DO NOTHING;

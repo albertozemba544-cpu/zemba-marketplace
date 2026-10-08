@@ -96,6 +96,22 @@ export default function OrderStatus() {
               {STATUS_COPY[order.status] ?? order.status}
             </span>
 
+            {(order.carrier_name || order.delivery_town) && (
+              <div className="zemba-ship">
+                <strong>Shipping</strong>
+                {order.delivery_town && <p>Sending to: {order.receiver_name} · {order.delivery_town}{order.receiver_phone ? ` · ${order.receiver_phone}` : ''}</p>}
+                {order.carrier_name ? (
+                  <>
+                    <p>Sent with <b>{order.carrier_name}</b></p>
+                    {order.waybill_number && <p>Waybill number: <b>{order.waybill_number}</b></p>}
+                    {order.pickup_point && <p>Collect at: <b>{order.pickup_point}</b></p>}
+                    <p className="zemba-muted">Expected within about {order.timeout_days} days of dispatch. Take your phone and the delivery code when you collect it.</p>
+                    {order.waybill_image_url && <a href={order.waybill_image_url} target="_blank" rel="noopener noreferrer"><img className="zemba-proof" src={order.waybill_image_url} alt="Proof of dispatch from the seller" /></a>}
+                  </>
+                ) : <p className="zemba-muted">The seller has not dispatched it yet.</p>}
+              </div>
+            )}
+
             {isBuyer && order.status === 'PENDING_PAYMENT' && <PaymentAction reference={order.order_reference} onDone={loadOrder} />}
 
             {isBuyer && (order.status === 'FUNDS_SECURED' || order.status === 'DISPATCHED') && (

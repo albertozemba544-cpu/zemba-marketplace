@@ -3,6 +3,9 @@ export const dynamic = 'force-dynamic';
 import bcrypt from 'bcryptjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { withTransaction } from '@/lib/db';
+import { isEmailConfigured, sendEmail } from '@/lib/notify';
+import { createToken } from '@/lib/tokens';
+import { siteUrl } from '@/lib/site';
 import { fail, handleError } from '@/lib/http';
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
@@ -21,6 +24,10 @@ export async function POST(req: NextRequest) {
     const nrc_number = String(body.nrc_number || '').trim();
     const location = String(body.location || '').trim();
 
+    if (body.accept_terms !== true) {
+      return fail('Please accept the Terms of Use, Privacy Policy and Refund Policy to create an account');
+    }
+
     if (!['customer', 'seller'].includes(role) || !full_name || !phone_number || !email || !password) {
       return fail('Role, name, phone, email and password are required');
     }
@@ -37,12 +44,14 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const approvalStatus = role === 'seller' ? 'PENDING' : 'APPROVED';
+    // When email sending is set up, people must click the link in their email before they can log in.
+    const needsVerification = isEmailConfigured();
 
     const id = await withTransaction(async (client) => {
       const inserted = await client.query(
         `INSERT INTO users (role, full_name, business_name, phone_number, email, password_hash,
-                            momo_provider, momo_number, approval_status, user_category, newsletter_opt_in)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                            momo_provider, momo_number, approval_status, user_category, newsletter_opt_in, email_verified_at, terms_accepted_at, whatsapp_opt_in)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CASE WHEN $12::boolean THEN NULL ELSE now() END, now(), $13)
          RETURNING id`,
         [
           role,
@@ -56,6 +65,8 @@ export async function POST(req: NextRequest) {
           approvalStatus,
           role.toUpperCase(),
           body.newsletter_opt_in !== false,
+          needsVerification,
+          body.whatsapp_opt_in === true,
         ]
       );
       const userId = inserted.rows[0].id as string;
@@ -69,7 +80,18 @@ export async function POST(req: NextRequest) {
       return userId;
     });
 
-    return NextResponse.json({ id, role, approval_status: approvalStatus }, { status: 201 });
+    if (needsVerification) {
+      const token = await createToken(id, 'VERIFY_EMAIL', 60 * 24);
+      const link = `${siteUrl(req)}/verify-email?token=${token}`;
+      await sendEmail(email, 'Confirm your email address', {
+        title: `Welcome to Zemba, ${full_name.split(' ')[0]}!`,
+        lines: ['Please confirm your email address to finish creating your account. This link works for 24 hours.'],
+        buttonText: 'Confirm my email',
+        buttonUrl: link,
+      });
+    }
+
+    return NextResponse.json({ id, role, approval_status: approvalStatus, needs_verification: needsVerification }, { status: 201 });
   } catch (error) {
     if ((error as { code?: string })?.code === '23505') {
       return fail('Email or phone number is already registered', 409);

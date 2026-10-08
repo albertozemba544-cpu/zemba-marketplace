@@ -15,8 +15,14 @@ export default function Browse() {
   useEffect(() => {
     const stored = localStorage.getItem('zemba_user');
     if (stored) setUser(JSON.parse(stored));
-    fetch('/api/products').then((r) => r.json()).then((d) => setProducts(d.products));
+    fetch('/api/products').then((r) => r.json()).then((d) => setProducts(d.products || []));
   }, []);
+
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    localStorage.removeItem('zemba_user');
+    window.location.href = '/login';
+  }
 
   async function addToCart(productId: string) {
     if (!user) { window.location.href = '/login'; return; }
@@ -37,7 +43,9 @@ export default function Browse() {
           <a href="/" className="brand">Zemba Marketplace</a>
           <div>
             <a href="/cart">Cart</a>
-            {user ? <a href="/browse">Hi, {user.full_name?.split(' ')[0]}</a> : <a href="/login">Log in</a>}
+            {user && <a href="/orders">My orders</a>}
+            {user && <a href="/account">My account</a>}
+            {user ? <><a href="/browse">Hi, {user.full_name?.split(' ')[0]}</a><a href="#" onClick={(e) => { e.preventDefault(); logout(); }}>Log out</a></> : <a href="/login">Log in</a>}
           </div>
         </nav>
 

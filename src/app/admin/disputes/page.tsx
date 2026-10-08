@@ -38,7 +38,7 @@ export default function AdminDisputes() {
       <div className="zemba-page">
         <nav className="zemba-nav">
           <a href="/admin/dashboard" className="brand">Zemba Marketplace — Admin</a>
-          <div><a href="/admin/dashboard">Overview</a><a href="/admin/users">Users</a></div>
+          <div><a href="/admin/dashboard">Overview</a><a href="/admin/orders">Stuck orders</a><a href="/admin/payouts">Money to move</a><a href="/admin/messages">Messages</a><a href="/admin/users">Users</a></div>
         </nav>
         <main style={{ position: 'relative', zIndex: 1, maxWidth: 720, margin: '1.5rem auto', padding: '0 1.5rem 4rem' }}>
           <div className="zemba-card" style={{ padding: '1.5rem' }}>

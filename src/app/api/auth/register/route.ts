@@ -6,12 +6,14 @@ import { withTransaction } from '@/lib/db';
 import { isEmailConfigured, sendEmail } from '@/lib/notify';
 import { createToken } from '@/lib/tokens';
 import { siteUrl } from '@/lib/site';
+import { allow, clientIp, TOO_MANY } from '@/lib/ratelimit';
 import { fail, handleError } from '@/lib/http';
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
 export async function POST(req: NextRequest) {
   try {
+    if (!(await allow(`register-ip:${clientIp(req)}`, 10, 3600))) return fail(TOO_MANY, 429);
     const body = await req.json();
     const role = body.role;
     const full_name = String(body.full_name || '').trim();

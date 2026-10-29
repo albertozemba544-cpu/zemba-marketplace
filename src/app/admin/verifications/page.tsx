@@ -6,6 +6,7 @@ import SkyBackground from '@/components/SkyBackground';
 export default function AdminVerifications() {
   const [pending, setPending] = useState<any[]>([]);
   const [verified, setVerified] = useState<any[]>([]);
+  const [candidates, setCandidates] = useState<any[]>([]);
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -15,11 +16,11 @@ export default function AdminVerifications() {
     fetch('/api/admin/verifications').then((r) => {
       if (r.status === 401 || r.status === 403) { window.location.href = '/admin/login'; return null; }
       return r.json();
-    }).then((d) => { if (d) { setPending(d.pending || []); setVerified(d.verified || []); } }).finally(() => setLoading(false));
+    }).then((d) => { if (d) { setPending(d.pending || []); setVerified(d.verified || []); setCandidates(d.candidates || []); } }).finally(() => setLoading(false));
   }
   useEffect(load, []);
 
-  async function decide(userId: string, action: 'approve' | 'reject' | 'revoke') {
+  async function decide(userId: string, action: 'approve' | 'reject' | 'revoke' | 'manual_verify') {
     setMessage('');
     const response = await fetch('/api/admin/verifications', {
       method: 'POST',
@@ -27,7 +28,7 @@ export default function AdminVerifications() {
       body: JSON.stringify({ user_id: userId, action, reason: reasons[userId] || '' }),
     });
     if (!response.ok) setMessage((await response.json().catch(() => ({}))).error || 'Something went wrong');
-    else setMessage(action === 'approve' ? 'Seller verified. The photos were deleted.' : action === 'reject' ? 'Rejected. The photos were deleted.' : 'Badge removed.');
+    else setMessage(action === 'manual_verify' ? 'Seller verified.' : action === 'approve' ? 'Seller verified. The photos were deleted.' : action === 'reject' ? 'Rejected. The photos were deleted.' : 'Badge removed.');
     load();
   }
 
@@ -61,6 +62,17 @@ export default function AdminVerifications() {
                 <button className="zemba-btn zemba-btn-secondary" onClick={() => decide(p.user_id, 'reject')}>Reject</button>
               </div>
             </section>
+          ))}
+
+          <h2 style={{ marginTop: '2.2rem', fontSize: '1.3rem' }}>Verify after a video call</h2>
+          <p className="zemba-muted">Call the seller on WhatsApp video. Check that their face matches the NRC they hold up, that the name matches the account, and that the NRC number matches what they typed. Then write a short note (for example: "ID checked on video call, 12 Nov") and verify. Do not screenshot or save their ID.</p>
+          {candidates.length === 0 && <p className="zemba-muted">No approved sellers are waiting to be verified.</p>}
+          {candidates.map((c) => (
+            <div key={c.user_id} className="zemba-card" style={{ padding: '0.9rem 1.1rem', marginTop: '0.6rem', display: 'flex', gap: '0.8rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 200 }}><strong>{c.business_name || c.full_name}</strong><br /><span className="zemba-muted">{c.full_name} · {c.phone_number} · NRC typed: {c.nrc_number || 'none'} · {c.location || '-'}</span></div>
+              <input className="zemba-input" style={{ flex: 1, minWidth: 180, margin: 0 }} placeholder="Note: how you checked them" value={reasons[c.user_id] || ''} onChange={(e) => setReasons({ ...reasons, [c.user_id]: e.target.value })} />
+              <button className="zemba-btn zemba-btn-primary" onClick={() => decide(c.user_id, 'manual_verify')}>Mark verified</button>
+            </div>
           ))}
 
           <h2 style={{ marginTop: '2.2rem', fontSize: '1.3rem' }}>Verified sellers</h2>

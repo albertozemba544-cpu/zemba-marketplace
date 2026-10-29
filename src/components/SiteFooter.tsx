@@ -38,7 +38,7 @@ export default function SiteFooter() {
       </div>
       <div className="zemba-footer-bottom">
         <span>© {new Date().getFullYear()} {SITE.name}</span>
-        <span><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/refund-policy">Refunds</a> · Protected payments powered by Zemba Tech</span>
+        <span><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/refund-policy">Refunds</a> · Protected payments by {SITE.legalName}</span>
       </div>
     </footer>
   );

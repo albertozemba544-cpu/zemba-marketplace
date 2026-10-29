@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import SiteAssistant from '@/components/SiteAssistant';
+import ModeBanner from '@/components/ModeBanner';
 import { SITE, siteUrl } from '@/lib/site';
 
 export const metadata: Metadata = {
@@ -27,7 +28,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}<SiteAssistant /></body>
+      <body><ModeBanner />{children}<SiteAssistant /></body>
     </html>
   );
 }

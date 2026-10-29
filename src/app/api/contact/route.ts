@@ -5,6 +5,7 @@ import { execute } from '@/lib/db';
 import { optionalUser } from '@/lib/auth';
 import { sendEmail } from '@/lib/notify';
 import { SITE } from '@/lib/site';
+import { allow, clientIp, TOO_MANY } from '@/lib/ratelimit';
 import { fail, handleError } from '@/lib/http';
 
 // Contact form on /contact. Saved in the "suggestions" table (see Admin -> Messages) and emailed to you.
@@ -13,6 +14,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     // hidden "website" field: real people leave it empty, spam bots fill it in
     if (body.website) return NextResponse.json({ ok: true });
+    if (!(await allow(`contact-ip:${clientIp(req)}`, 6, 3600))) return fail(TOO_MANY, 429);
 
     const name = String(body.name || '').trim().slice(0, 100);
     const phone = String(body.phone || '').trim().slice(0, 30);

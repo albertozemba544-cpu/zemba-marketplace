@@ -39,7 +39,14 @@ export async function GET(req: NextRequest) {
        FROM vendor_verification v JOIN users u ON u.id = v.user_id
        WHERE v.verification_status = 'VERIFIED' ORDER BY v.verified_at DESC`
     );
-    return NextResponse.json({ pending, verified });
+    const candidates = await query(
+      `SELECT u.id AS user_id, u.full_name, u.business_name, u.email, u.phone_number, v.nrc_number, v.location
+       FROM users u LEFT JOIN vendor_verification v ON v.user_id = u.id
+       WHERE u.role = 'seller' AND u.approval_status = 'APPROVED' AND u.account_status = 'ACTIVE'
+         AND COALESCE(v.verification_status, 'NONE') <> 'VERIFIED'
+       ORDER BY u.created_at DESC`
+    );
+    return NextResponse.json({ pending, verified, candidates });
   } catch (error) {
     return handleError(error);
   }
@@ -52,8 +59,33 @@ export async function POST(req: NextRequest) {
   try {
     const { user_id, action, reason } = await req.json();
     const note = String(reason || '').trim().slice(0, 300);
-    if (!isUuid(user_id) || !['approve', 'reject', 'revoke'].includes(action)) return fail('Invalid request');
-    if (action !== 'approve' && note.length < 3) return fail('Please give a short reason');
+    if (!isUuid(user_id) || !['approve', 'reject', 'revoke', 'manual_verify'].includes(action)) return fail('Invalid request');
+    if (action !== 'approve' && note.length < 3) return fail('Please give a short reason or note');
+
+    if (action === 'manual_verify') {
+      // Verified after checking the seller's ID and face on a live video call. No photos are stored.
+      const seller = await queryOne<any>(
+        `SELECT u.email, u.phone_number, u.full_name, u.role, u.whatsapp_opt_in, v.nrc_photo_path, v.selfie_path
+         FROM users u LEFT JOIN vendor_verification v ON v.user_id = u.id
+         WHERE u.id = $1 AND u.role = 'seller' AND u.approval_status = 'APPROVED'`,
+        [user_id]
+      );
+      if (!seller) return fail('Seller not found', 404);
+      await queryOne(
+        `INSERT INTO vendor_verification (user_id, verification_status, verified_at, reviewed_by, verification_note)
+         VALUES ($1, 'VERIFIED', now(), $2, $3)
+         ON CONFLICT (user_id) DO UPDATE SET verification_status = 'VERIFIED', verified_at = now(), reviewed_by = $2,
+           verification_note = $3, rejection_reason = NULL, nrc_photo_path = NULL, selfie_path = NULL`,
+        [user_id, auth.user.id, note]
+      );
+      await removePrivateImage(seller.nrc_photo_path);
+      await removePrivateImage(seller.selfie_path);
+      const subject = 'You are now a Verified seller';
+      const lines = ['Good news: we checked your ID and your shop now shows the Verified seller badge. Buyers will see it on your listings.'];
+      const link = `${siteUrl()}/seller/dashboard`;
+      await notifyUser(seller, subject, { title: subject, lines, buttonText: 'Open on ' + SITE.name, buttonUrl: link }, `Zemba: ${lines[0]}`, { event: 'ID_APPROVE', link });
+      return NextResponse.json({ ok: true });
+    }
 
     const row = await queryOne<any>(
       `SELECT v.verification_status, v.nrc_photo_path, v.selfie_path, u.email, u.phone_number, u.full_name, u.role, u.whatsapp_opt_in

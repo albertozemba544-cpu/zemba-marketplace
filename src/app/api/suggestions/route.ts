@@ -3,10 +3,12 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { execute } from '@/lib/db';
 import { optionalUser } from '@/lib/auth';
+import { allow, clientIp, TOO_MANY } from '@/lib/ratelimit';
 import { fail, handleError } from '@/lib/http';
 
 export async function POST(req: NextRequest) {
   try {
+    if (!(await allow(`suggest-ip:${clientIp(req)}`, 6, 3600))) return fail(TOO_MANY, 429);
     const { subject, message } = await req.json();
     if (!String(subject || '').trim() || !String(message || '').trim()) {
       return fail('Subject and suggestion are required');

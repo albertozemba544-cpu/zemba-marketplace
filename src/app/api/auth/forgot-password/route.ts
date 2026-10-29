@@ -5,6 +5,7 @@ import { findUserByEmail } from '@/lib/db';
 import { isEmailConfigured, sendEmail } from '@/lib/notify';
 import { createToken, recentTokenExists } from '@/lib/tokens';
 import { siteUrl } from '@/lib/site';
+import { allow, clientIp, TOO_MANY } from '@/lib/ratelimit';
 import { fail, handleError } from '@/lib/http';
 
 // POST /api/auth/forgot-password  { email }
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
     const { email } = await req.json();
     if (typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email.trim())) return fail('Please enter a valid email address');
     if (!isEmailConfigured()) return fail('Password reset by email is not set up on this site yet. Please contact support.', 503);
+    if (!(await allow(`forgot-ip:${clientIp(req)}`, 10, 3600)) || !(await allow(`forgot-email:${email.trim().toLowerCase()}`, 3, 3600))) return fail(TOO_MANY, 429);
 
     const user = await findUserByEmail(email.trim());
     if (user && user.account_status === 'ACTIVE' && !(await recentTokenExists(user.id, 'RESET_PASSWORD', 60))) {

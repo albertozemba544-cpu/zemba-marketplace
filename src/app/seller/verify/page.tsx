@@ -5,7 +5,7 @@ import SkyBackground from '@/components/SkyBackground';
 import { shrinkImage } from '@/lib/imageResize';
 
 export default function SellerVerify() {
-  const [info, setInfo] = useState<{ status: string; reason: string | null } | null>(null);
+  const [info, setInfo] = useState<{ status: string; reason: string | null; enabled?: boolean } | null>(null);
   const [nrc, setNrc] = useState<File | null>(null);
   const [selfie, setSelfie] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -52,7 +52,16 @@ export default function SellerVerify() {
 
           {info?.status === 'SUBMITTED' && <div className="zemba-card" style={{ padding: '1.4rem' }}><strong>Your photos are being checked</strong><p>We usually check them within 1 to 2 working days and will email you the result.</p></div>}
 
-          {(info?.status === 'NONE' || info?.status === 'REJECTED') && (
+          {info && info.enabled === false && info.status !== 'VERIFIED' && (
+            <div className="zemba-card" style={{ padding: '1.4rem' }}>
+              <strong>Verify with a short video call</strong>
+              <p>To keep your ID private, we do not collect ID photos for now. Instead, a Zemba team member checks your NRC and your face on a short WhatsApp video call, then adds the Verified badge to your shop. Nothing is stored.</p>
+              <p><a className="zemba-btn zemba-btn-primary" href="/contact" style={{ textDecoration: 'none' }}>Contact us to book a call</a></p>
+              {info.status === 'REJECTED' && info.reason && <div className="zemba-form-error">Note: {info.reason}</div>}
+            </div>
+          )}
+
+          {(info?.status === 'NONE' || info?.status === 'REJECTED') && info.enabled !== false && (
             <form className="zemba-card" style={{ padding: '1.4rem' }} onSubmit={submit}>
               {info.status === 'REJECTED' && info.reason && <div className="zemba-form-error">Last time: {info.reason}</div>}
               <label className="zemba-field">1. A clear photo of the front of your NRC

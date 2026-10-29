@@ -605,3 +605,10 @@ html { scroll-behavior: smooth; }
 .zemba-social a { color: rgba(255, 255, 255, 0.85); font-size: 0.78rem; text-decoration: underline; }
 .zemba-share { display: block; margin: 0.2rem 0 0.9rem; padding: 0.7rem; border: 1px solid #1faa59; border-radius: 8px; color: #0f7a40; font-size: 0.85rem; font-weight: 700; text-align: center; text-decoration: none; }
 .zemba-share:hover { background: #e8f8ee; }
+
+/* ==========================================================================
+   Part 6 - test / "payments opening soon" bar
+   ========================================================================== */
+.zemba-mode-banner { padding: 0.45rem 1rem; text-align: center; font-size: 0.8rem; line-height: 1.4; }
+.zemba-mode-banner.test { background: #fff2ca; color: #6b4a00; border-bottom: 1px solid #f0d98a; }
+.zemba-mode-banner.soon { background: #e7f5ec; color: #0f5a3c; border-bottom: 1px solid #cde6d6; }

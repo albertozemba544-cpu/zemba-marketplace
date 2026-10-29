@@ -4,11 +4,13 @@ import bcrypt from 'bcryptjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { execute } from '@/lib/db';
 import { consumeToken } from '@/lib/tokens';
+import { allow, clientIp, TOO_MANY } from '@/lib/ratelimit';
 import { fail, handleError } from '@/lib/http';
 
 // POST /api/auth/reset-password  { token, password }
 export async function POST(req: NextRequest) {
   try {
+    if (!(await allow(`reset-ip:${clientIp(req)}`, 20, 3600))) return fail(TOO_MANY, 429);
     const { token, password } = await req.json();
     if (typeof password !== 'string' || password.length < 8) return fail('Password must be at least 8 characters');
 

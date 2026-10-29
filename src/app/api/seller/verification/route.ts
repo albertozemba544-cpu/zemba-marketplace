@@ -8,6 +8,7 @@ import { queryOne } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { savePrivateImage, removePrivateImage } from '@/lib/storage';
 import { alertAdmin } from '@/lib/alerts';
+import { idChecksEnabled } from '@/lib/flags';
 import { fail, handleError } from '@/lib/http';
 
 export async function GET(req: NextRequest) {
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
       [auth.user.id]
     );
     return NextResponse.json({
+      enabled: idChecksEnabled(),
       status: row?.verification_status || 'NONE',
       reason: row?.rejection_reason || null,
       submitted_at: row?.submitted_at || null,
@@ -32,6 +34,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireUser(req, ['seller']);
   if ('res' in auth) return auth.res;
+  if (!idChecksEnabled()) return fail('ID photo checks are not open yet. Zemba verifies sellers by a short video call instead. Please contact us.', 403);
   let nrcPath: string | null = null;
   let selfiePath: string | null = null;
   try {

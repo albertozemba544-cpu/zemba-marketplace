@@ -6,12 +6,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { findUserByEmail } from '@/lib/db';
 import { setSessionCookie } from '@/lib/auth';
 import { isEmailConfigured } from '@/lib/notify';
+import { allow, clientIp, TOO_MANY } from '@/lib/ratelimit';
 import { fail, handleError } from '@/lib/http';
 
 export async function POST(req: NextRequest) {
   try {
     const { email, password, role } = await req.json();
     if (typeof email !== 'string' || typeof password !== 'string') return fail('Email and password are required');
+    if (!(await allow(`login-ip:${clientIp(req)}`, 30, 900)) || !(await allow(`login-email:${email.trim().toLowerCase()}`, 8, 900))) return fail(TOO_MANY, 429);
 
     const user = await findUserByEmail(email.trim());
     const isMatch = user ? await bcrypt.compare(password, user.password_hash) : false;

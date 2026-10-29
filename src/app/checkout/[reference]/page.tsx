@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import SkyBackground from '@/components/SkyBackground';
 import OrderProtectionActions from '@/components/OrderProtectionActions';
+import { SITE } from '@/lib/site';
 
 const STATUS_COPY: Record<string, string> = {
   PENDING_PAYMENT: 'Waiting for payment',
@@ -172,7 +173,7 @@ export default function OrderStatus() {
 
             {isBuyer && <OrderProtectionActions orderId={order.id} status={order.status} onChanged={loadOrder} />}
 
-            <p style={{ marginTop: '2rem', fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Powered by Zemba Tech escrow.</p>
+            <p style={{ marginTop: '2rem', fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Escrow service run by {SITE.legalName}.</p>
           </div>
         </main>
       </div>

@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
 
     const product = await queryOne<{ stock: number }>(
       `SELECT stock FROM products
-       WHERE id = $1 AND approval_status = 'APPROVED' AND status IN ('ACTIVE', 'LINK_ONLY')`,
+       WHERE id = $1 AND approval_status = 'APPROVED' AND status IN ('ACTIVE', 'LINK_ONLY')
+         AND EXISTS (SELECT 1 FROM users su WHERE su.id = seller_id AND su.account_status = 'ACTIVE')`,
       [product_id]
     );
     if (!product) return fail('This product is not available', 404);

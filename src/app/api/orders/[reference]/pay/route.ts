@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrderByReference, queryOne } from '@/lib/db';
 import { demoPaymentsEnabled } from '@/lib/flags';
+import { paymentsPaused } from '@/lib/settings';
 import { requireUser } from '@/lib/auth';
 import { markFundsSecured } from '@/lib/orders';
 import { fail, handleError } from '@/lib/http';
@@ -18,6 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { reference: 
     if (!demoPaymentsEnabled()) {
       return fail('Online payment is not available yet.', 503);
     }
+    if (await paymentsPaused()) return fail('Payments are paused for a short while. Please try again soon.', 503);
     const order = await getOrderByReference(params.reference);
     if (!order || order.customer_id !== auth.user.id) return fail('Order not found', 404);
     if (order.status !== 'PENDING_PAYMENT') return fail(`Order is already ${order.status}`, 400);

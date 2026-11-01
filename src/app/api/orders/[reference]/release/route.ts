@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getOrderByReference, logEvent, withTransaction } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { createNotification } from '@/lib/orders';
+import { moneyBlockReason } from '@/lib/settings';
 import { fail, handleError } from '@/lib/http';
 
 // Buyer confirms delivery with the delivery code, which releases the money to the seller.
@@ -19,6 +20,8 @@ export async function POST(req: NextRequest, { params }: { params: { reference: 
     if (order.status !== 'FUNDS_SECURED' && order.status !== 'DISPATCHED') {
       return fail(`Cannot release from status ${order.status}`, 400);
     }
+    const blocked = await moneyBlockReason(order.id);
+    if (blocked) return fail(blocked, 503);
     if (!order.delivery_code || code !== order.delivery_code) return fail('Incorrect delivery code', 400);
 
     const released = await withTransaction(async (client) => {

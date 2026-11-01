@@ -68,7 +68,13 @@ export async function GET(req: NextRequest) {
        WHERE m.dispute_id = $1 ORDER BY m.created_at ASC`,
       [dispute.id]
     );
-    return NextResponse.json({ ...dispute, messages });
+    const proposals = await query(
+      `SELECT p.id, p.kind, p.note, p.status, p.proposed_by, p.created_at, u.role AS proposer_role
+       FROM dispute_proposals p JOIN users u ON u.id = p.proposed_by
+       WHERE p.dispute_id = $1 ORDER BY p.created_at DESC`,
+      [dispute.id]
+    );
+    return NextResponse.json({ ...dispute, messages, proposals, buyer_id: order.customer_id, seller_id: order.seller_id });
   } catch (error) {
     return handleError(error, 'Unable to fetch dispute');
   }

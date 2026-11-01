@@ -14,10 +14,10 @@ export default function AboutPage() {
         <h2>How we keep it safe</h2>
         <ul>
           <li><strong>Escrow.</strong> Your money is held by Zemba and goes to the seller only after you confirm that the item arrived.</li>
-          <li><strong>Checked sellers.</strong> Every seller and every product is approved before it appears. Sellers can also have their NRC checked to earn a Verified badge.</li>
+          <li><strong>Kept clean.</strong> Listings are checked automatically and by reports from the community, and our team removes anything that does not belong. Sellers can also have their ID checked on a video call to earn a Verified badge.</li>
           <li><strong>Real track records.</strong> Every shop shows orders completed, dispatch speed and disputes. Reviews come only from buyers who received the item.</li>
           <li><strong>Built for how Zambia ships.</strong> Sellers send by bus or courier and record the waybill, so you can see where your item is and where to collect it.</li>
-          <li><strong>A real person decides disputes.</strong> If something goes wrong, our team looks at the evidence and refunds you or pays the seller.</li>
+          <li><strong>Problems are settled fairly.</strong> If something goes wrong, you and the other person talk it through on the order page and agree a solution. If you cannot agree, our team steps in and decides.</li>
         </ul>
 
         <h2>Who we are</h2>

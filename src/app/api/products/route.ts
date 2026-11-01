@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne, withTransaction } from '@/lib/db';
 import { optionalUser, requireUser } from '@/lib/auth';
+import { checkListing } from '@/lib/moderation';
 import { saveUploadedImage } from '@/lib/storage';
 import { fail, handleError, isUuid } from '@/lib/http';
 
@@ -29,7 +30,9 @@ export async function GET(req: NextRequest) {
               (SELECT COUNT(*) FROM product_reviews r WHERE r.product_id = p.id) AS review_count,
               (SELECT AVG(r.product_rating) FROM product_reviews r WHERE r.product_id = p.id) AS avg_rating
        FROM products p LEFT JOIN vendor_verification v ON v.user_id = p.seller_id
-       WHERE p.status = 'ACTIVE' AND p.approval_status = 'APPROVED' ORDER BY p.created_at DESC`
+       WHERE p.status = 'ACTIVE' AND p.approval_status = 'APPROVED'
+         AND EXISTS (SELECT 1 FROM users su WHERE su.id = p.seller_id AND su.account_status = 'ACTIVE')
+       ORDER BY p.created_at DESC`
     );
     return NextResponse.json({ products: rows });
   } catch (error) {
@@ -80,12 +83,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Listings go live straight away. Only suspicious ones are flagged (hidden) for an admin to look at.
+    const reasons = await checkListing(auth.user.id, { title, description, price });
+    const flagged = reasons.length > 0;
+
     const id = await withTransaction(async (client) => {
       const created = await client.query(
-        `INSERT INTO products (seller_id, title, description, price, category, stock, image_url, approval_status, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', 'ACTIVE')
+        `INSERT INTO products (seller_id, title, description, price, category, stock, image_url, approval_status, status, flag_reason, flagged_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ACTIVE', $9, CASE WHEN $8::text = 'FLAGGED' THEN now() ELSE NULL END)
          RETURNING id`,
-        [auth.user.id, title, description, Math.round(price * 100) / 100, category || 'General', stock, urls[0] ?? null]
+        [auth.user.id, title, description, Math.round(price * 100) / 100, category || 'General', stock, urls[0] ?? null, flagged ? 'FLAGGED' : 'APPROVED', flagged ? reasons.join('; ') : null]
       );
       const productId = created.rows[0].id as string;
       for (let i = 0; i < urls.length; i++) {
@@ -93,7 +100,7 @@ export async function POST(req: NextRequest) {
       }
       return productId;
     });
-    return NextResponse.json({ id }, { status: 201 });
+    return NextResponse.json({ id, flagged, reasons }, { status: 201 });
   } catch (error) {
     return handleError(error, 'Could not publish listing');
   }

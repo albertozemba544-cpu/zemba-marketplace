@@ -18,7 +18,7 @@ export default function RefundPolicyPage() {
         <ul>
           <li><strong>The seller does not send the item.</strong> If the seller has not dispatched your order within 3 days of your payment being confirmed, the order is refunded automatically.</li>
           <li><strong>No proof of dispatch.</strong> If the delivery window runs out and the seller has not uploaded proof that the item was sent, the order is refunded automatically.</li>
-          <li><strong>You win a dispute.</strong> If you open a dispute and our administrator decides in your favour, you are refunded.</li>
+          <li><strong>A dispute ends in a refund.</strong> You and the seller agree a refund (or that you send the item back and it arrives), or, if you cannot agree, the Zemba team decides in your favour.</li>
         </ul>
 
         <h2>2. How much you get back</h2>
@@ -33,9 +33,10 @@ export default function RefundPolicyPage() {
         <h2>5. How to open a dispute</h2>
         <ol>
           <li>Log in and open <a href="/orders">My orders</a>, then open the order.</li>
-          <li>Choose <strong>File a dispute</strong> and explain what went wrong, for example: wrong item, item damaged, item missing parts, or item not received.</li>
-          <li>You and the seller can send messages on the order page. Keep photos and chat messages that help show what happened.</li>
-          <li>A Zemba administrator reviews everything and decides whether to refund you or release the money to the seller. We will tell you the decision and the reason.</li>
+          <li>Choose <strong>Open a dispute</strong> and explain what went wrong, for example: wrong colour, item damaged, item missing parts, or item not received.</li>
+          <li>You and the seller talk on the order page. Either of you can propose a solution: a full refund, paying the seller, or the buyer sending the item back and then being refunded. The other person accepts or declines.</li>
+          <li>If you agree to send the item back, the buyer enters the bus or courier and waybill number, and the seller confirms when it arrives. The buyer is then refunded automatically.</li>
+          <li>If you cannot agree, either of you can ask the Zemba team to step in (after 2 days, or sooner if a proposal was declined). We also step in if there is no agreement after 7 days. The team looks at the messages and decides whether to refund the buyer or pay the seller, and tells you why.</li>
         </ol>
         <p>You can open a dispute while the order is paid, dispatched, or waiting for review, and before you confirm delivery. You cannot dispute an order after you have entered the delivery code.</p>
 

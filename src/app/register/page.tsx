@@ -22,7 +22,7 @@ export default function RegisterPage() {
     const response = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, role, accept_terms: agree, newsletter_opt_in: news, whatsapp_opt_in: wa }) });
     const data = await response.json();
     const confirm = data.needs_verification ? ' We emailed you a link - please confirm your email address first.' : '';
-    setMessage(response.ok ? (role === 'seller' ? 'Seller account created.' + confirm + ' An admin must also approve it before you can log in.' : 'Account created.' + (confirm || ' You can log in now.')) : data.error || 'Could not create account.');
+    setMessage(response.ok ? (role === 'seller' ? 'Seller account created.' + confirm + ' You can add your first product as soon as you log in.' : 'Account created.' + (confirm || ' You can log in now.')) : data.error || 'Could not create account.');
     if (response.ok) setForm({ full_name: '', business_name: '', phone_number: '', email: '', password: '', momo_provider: 'MTN', momo_number: '', nrc_number: '', location: '' });
   }
 

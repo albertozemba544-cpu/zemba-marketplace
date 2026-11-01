@@ -38,7 +38,7 @@ export default function VerifyEmail() {
         {state === 'ok' && (
           <>
             <h1>Email confirmed ✓</h1>
-            <p className="sub">Thank you! Your email address is confirmed. Sellers may still need to wait for approval from our team.</p>
+            <p className="sub">Thank you! Your email address is confirmed. You can log in now.</p>
             <p><a className="zemba-btn zemba-btn-primary" href="/login" style={{ width: '100%', textAlign: 'center' }}>Log in</a></p>
           </>
         )}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import SellerTrust from '@/components/SellerTrust';
+import ReportButton from '@/components/ReportButton';
 
 export default function SellerShop() {
   const params = useParams();
@@ -33,6 +34,7 @@ export default function SellerShop() {
           <h1>{seller.name}{seller.verified && <span className="zemba-verified" title="Zemba checked this seller's NRC and a selfie">✓ Verified seller</span>}</h1>
           {reviews && reviews.count > 0 && <p className="zemba-muted">Seller rating {Number(reviews.average).toFixed(1)} / 5 from {reviews.count} review{reviews.count === 1 ? '' : 's'} by real buyers</p>}
           <SellerTrust trust={seller} />
+          <ReportButton targetType="USER" targetId={seller.id} label="Report this seller" />
         </section>
         <h2 className="zemba-info-h2">Products</h2>
         {products.length === 0 && <p className="zemba-muted">This seller has no products listed right now.</p>}

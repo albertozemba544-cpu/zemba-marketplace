@@ -15,13 +15,14 @@ export default function PrivacyPage() {
         </div>
 
         <h2>1. Who we are</h2>
-        <p>{SITE.name} is run by {SITE.legalName}{SITE.registrationNumber ? `, registration number ${SITE.registrationNumber}` : ''}{SITE.address ? `, ${SITE.address}` : ''}. We are responsible for the personal information described in this policy (the &quot;data controller&quot; under Zambia&apos;s Data Protection Act, 2021).{SITE.email ? <> You can reach us about privacy at <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.</> : <> You can reach us about privacy through our <a href="/contact">contact page</a>.</>}</p>
+        <p>{SITE.name} is run by {SITE.legalName}{SITE.registrationNumber ? `, registration number ${SITE.registrationNumber}` : ' (business registration in progress)'}{SITE.address ? `, ${SITE.address}` : ''}. We are responsible for the personal information described in this policy (the &quot;data controller&quot; under Zambia&apos;s Data Protection Act, 2021).{SITE.email ? <> You can reach us about privacy at <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.</> : <> You can reach us about privacy through our <a href="/contact">contact page</a>.</>}</p>
 
         <h2>2. What we collect</h2>
         <ul>
           <li><strong>Your account:</strong> full name, phone number, email address, and your password (kept only in scrambled form that we cannot read), and whether you want news and offers.</li>
           <li><strong>If you sell:</strong> business name, NRC number, location, and the mobile money provider and number for payouts.</li>
-          <li><strong>If you apply for the Verified badge:</strong> a photo of your NRC and a selfie. They are kept in private storage that only authorised Zemba staff can open, and they are deleted as soon as we have decided. We keep only the result (verified or not) and the date.</li>
+          <li><strong>If you apply for the Verified badge:</strong> a member of our team checks your NRC and your face on a short video call. We do not keep photos or recordings. We keep only the result (verified or not), the date and a short note about how we checked you. If we ever offer photo checks instead, we will tell you first and delete the photos as soon as we have decided.</li>
+          <li><strong>Reports:</strong> if you report a listing or a person, we keep your report and who made it so our team can review it. The person you report is not told who reported them.</li>
           <li><strong>Delivery details:</strong> the name, phone number, town and pickup note you give at checkout. The seller sees them and passes them on to the bus company or courier that carries your item.</li>
           <li><strong>Your choices:</strong> whether you want news and offers, and whether you want order updates on WhatsApp.</li>
           <li><strong>Your orders:</strong> what you bought or sold, amounts, order status, delivery code, proof-of-dispatch photos, dispute messages and notifications.</li>
@@ -37,7 +38,8 @@ export default function PrivacyPage() {
           <li>To check sellers and prevent fraud, abuse and unsafe listings.</li>
           <li>To send you service messages, for example order updates and password reset links, by email and, where switched on, SMS.</li>
           <li>To answer your questions and improve the website.</li>
-          <li>To send news and offers, only if you chose to receive them. You can opt out at any time.</li>
+          <li>To send you important messages about the website, such as changes to our rules or your account. These go to every active user.</li>
+          <li>To send news and offers, only if you chose to receive them. Each one has an unsubscribe link, and you can change your choice in My account at any time.</li>
           <li>To meet our legal duties, such as keeping records or answering lawful requests from authorities.</li>
         </ul>
 

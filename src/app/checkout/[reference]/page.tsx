@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import SkyBackground from '@/components/SkyBackground';
 import OrderProtectionActions from '@/components/OrderProtectionActions';
+import DisputePanel from '@/components/DisputePanel';
 import { SITE } from '@/lib/site';
 
 const STATUS_COPY: Record<string, string> = {
@@ -22,10 +23,6 @@ export default function OrderStatus() {
   const [order, setOrder] = useState<any>(null);
   const [loadError, setLoadError] = useState('');
   const [dispute, setDispute] = useState<any>(null);
-  const [showDisputeForm, setShowDisputeForm] = useState(false);
-  const [disputeReason, setDisputeReason] = useState('');
-  const [newMessage, setNewMessage] = useState('');
-  const [formError, setFormError] = useState('');
   const [user, setUser] = useState<any>(null);
 
   const loadOrder = useCallback(async () => {
@@ -43,41 +40,6 @@ export default function OrderStatus() {
     if (stored) setUser(JSON.parse(stored));
     loadOrder();
   }, [loadOrder]);
-
-  async function fileDispute(e: React.FormEvent) {
-    e.preventDefault();
-    setFormError('');
-    if (!disputeReason.trim()) return;
-    const response = await fetch('/api/orders/disputes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order_id: order.id, reason: disputeReason }),
-    });
-    if (response.ok) {
-      setDisputeReason('');
-      setShowDisputeForm(false);
-      await loadOrder();
-    } else {
-      setFormError((await response.json().catch(() => ({}))).error || 'Could not submit the dispute');
-    }
-  }
-
-  async function postMessage(e: React.FormEvent) {
-    e.preventDefault();
-    setFormError('');
-    if (!newMessage.trim() || !dispute) return;
-    const response = await fetch('/api/orders/disputes/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dispute_id: dispute.id, message: newMessage }),
-    });
-    if (response.ok) {
-      setNewMessage('');
-      await loadOrder();
-    } else {
-      setFormError((await response.json().catch(() => ({}))).error || 'Could not send the message');
-    }
-  }
 
   if (loadError) return <div style={{ textAlign: 'center', padding: '2rem', color: '#fff' }}>{loadError}. <a href="/browse" style={{ color: '#FFD37A' }}>Back to shopping</a></div>;
   if (!order) return <div style={{ textAlign: 'center', padding: '2rem', color: '#fff' }}>Loading...</div>;
@@ -119,61 +81,11 @@ export default function OrderStatus() {
               <DeliveryAction reference={order.order_reference} deliveryCode={order.delivery_code} onDone={loadOrder} />
             )}
 
-            {isBuyer && !dispute && (order.status === 'FUNDS_SECURED' || order.status === 'DISPATCHED') && (
-              <div style={{ marginTop: '1.6rem', padding: '1rem', background: 'rgba(255,211,122,0.1)', borderRadius: 8, border: '1px solid rgba(255,211,122,0.2)' }}>
-                <p style={{ color: '#FFD37A', fontSize: '0.9rem', margin: 0 }}>Something wrong with this order?</p>
-                <button type="button" className="zemba-btn zemba-btn-secondary" onClick={() => setShowDisputeForm(true)} style={{ marginTop: '0.6rem', width: '100%' }}>
-                  File a dispute
-                </button>
-              </div>
-            )}
-
-            {showDisputeForm && !dispute && (
-              <form onSubmit={fileDispute} style={{ marginTop: '1.6rem', padding: '1rem', background: 'rgba(255,211,122,0.05)', borderRadius: 8 }}>
-                <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem' }}>Tell us what went wrong:</p>
-                <textarea
-                  className="zemba-input"
-                  placeholder="e.g., Wrong item received, Item damaged in transit, Item didn't arrive..."
-                  value={disputeReason}
-                  onChange={(e) => setDisputeReason(e.target.value)}
-                  rows={3}
-                  required
-                />
-                <button className="zemba-btn zemba-btn-primary" style={{ width: '100%', marginTop: '0.6rem' }}>Submit dispute</button>
-                <button type="button" className="zemba-btn zemba-btn-secondary" onClick={() => setShowDisputeForm(false)} style={{ width: '100%', marginTop: '0.4rem' }}>Cancel</button>
-              </form>
-            )}
-
-            {dispute && (
-              <div style={{ marginTop: '1.6rem', padding: '1rem', background: 'rgba(255,211,122,0.1)', borderRadius: 8, border: '1px solid rgba(255,211,122,0.2)' }}>
-                <p style={{ color: '#FFD37A', fontSize: '0.9rem', marginTop: 0 }}>Dispute status: {dispute.status}</p>
-                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', margin: '0.4rem 0' }}><strong>Reason:</strong> {dispute.reason}</p>
-                {dispute.admin_notes && (
-                  <p style={{ color: 'rgba(255,211,122,0.9)', fontSize: '0.85rem' }}><strong>Admin decision:</strong> {dispute.admin_notes}</p>
-                )}
-                <div style={{ marginTop: '0.8rem', maxHeight: 200, overflowY: 'auto', background: 'rgba(0,0,0,0.2)', padding: '0.6rem', borderRadius: 4 }}>
-                  {(dispute.messages || []).length === 0 && <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>No messages yet.</div>}
-                  {(dispute.messages || []).map((msg: any) => (
-                    <div key={msg.id} style={{ marginBottom: '0.4rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)' }}>
-                      <strong style={{ color: '#FFD37A' }}>{msg.sender_id === user?.id ? 'You' : msg.sender_role === 'admin' ? 'Zemba admin' : msg.sender_role === 'seller' ? 'Seller' : 'Buyer'}</strong>: {msg.message}
-                      <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{new Date(msg.created_at).toLocaleString()}</div>
-                    </div>
-                  ))}
-                </div>
-                {dispute.status === 'OPEN' && (
-                  <form onSubmit={postMessage} style={{ marginTop: '0.8rem', display: 'flex', gap: '0.4rem' }}>
-                    <input className="zemba-input" placeholder="Add a message..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} style={{ flex: 1, margin: 0 }} />
-                    <button className="zemba-btn zemba-btn-primary" style={{ flex: 0 }}>Send</button>
-                  </form>
-                )}
-              </div>
-            )}
-
-            {formError && <p style={{ color: '#FFD9D9', fontSize: '0.85rem', marginTop: '0.8rem' }}>⚠ {formError}</p>}
+            <DisputePanel order={order} dispute={dispute} user={user} onChanged={loadOrder} />
 
             {isBuyer && <OrderProtectionActions orderId={order.id} status={order.status} onChanged={loadOrder} />}
 
-            <p style={{ marginTop: '2rem', fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Escrow service run by {SITE.legalName}.</p>
+            <p style={{ marginTop: '2rem', fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Zemba Marketplace is owned and operated by {SITE.legalName}.</p>
           </div>
         </main>
       </div>

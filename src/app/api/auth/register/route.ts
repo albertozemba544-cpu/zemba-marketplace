@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const approvalStatus = role === 'seller' ? 'PENDING' : 'APPROVED';
+    const approvalStatus = 'APPROVED'; // sellers go live straight away; the admin steps in only when something is flagged or reported
     // When email sending is set up, people must click the link in their email before they can log in.
     const needsVerification = isEmailConfigured();
 

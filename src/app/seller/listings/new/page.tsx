@@ -43,10 +43,11 @@ export default function NewListing() {
 
     const response = await fetch('/api/products', { method: 'POST', body: form });
     setSaving(false);
-    if (!response.ok) { setError((await response.json().catch(() => ({}))).error || 'Could not publish listing'); return; }
-    setError('');
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) { setError(data.error || 'Could not publish listing'); return; }
+    setError(data.flagged ? `Saved, but it is under review first because: ${(data.reasons || []).join(', ')}. An admin will look at it soon.` : '');
     setSaved(true);
-    setTimeout(() => { window.location.href = '/seller/dashboard'; }, 900);
+    setTimeout(() => { window.location.href = '/seller/dashboard'; }, data.flagged ? 3500 : 900);
   }
 
   return (

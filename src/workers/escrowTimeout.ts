@@ -13,7 +13,7 @@ export async function processEscrowTimeouts() {
   const result = await withTransaction(async (client) => {
     const unshipped = await client.query(
       `UPDATE orders SET status = 'REFUNDED', refund_status = 'DUE', updated_at = now()
-       WHERE status = 'FUNDS_SECURED' AND updated_at < now() - interval '3 days'
+       WHERE status = 'FUNDS_SECURED' AND NOT admin_hold AND updated_at < now() - interval '3 days'
        RETURNING id, customer_id, seller_id`
     );
     for (const order of unshipped.rows as Row[]) {
@@ -25,7 +25,7 @@ export async function processEscrowTimeouts() {
          SET status = CASE WHEN waybill_image_url IS NULL THEN 'REFUNDED' ELSE 'PENDING_ADMIN_REVIEW' END,
              refund_status = CASE WHEN waybill_image_url IS NULL THEN 'DUE' ELSE refund_status END,
              updated_at = now()
-       WHERE status = 'DISPATCHED' AND updated_at + make_interval(days => timeout_days) < now()
+       WHERE status = 'DISPATCHED' AND NOT admin_hold AND updated_at + make_interval(days => timeout_days) < now()
        RETURNING id, status, customer_id, seller_id`
     );
     for (const order of overdue.rows as (Row & { status: string })[]) {
@@ -40,7 +40,7 @@ export async function processEscrowTimeouts() {
 
     const warnings = await client.query(
       `UPDATE orders SET timeout_warning_sent_at = now()
-       WHERE status = 'DISPATCHED' AND timeout_warning_sent_at IS NULL
+       WHERE status = 'DISPATCHED' AND NOT admin_hold AND timeout_warning_sent_at IS NULL
          AND updated_at + make_interval(days => timeout_days - 2) <= now()
        RETURNING id, customer_id, seller_id`
     );

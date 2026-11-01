@@ -47,7 +47,7 @@ export default function AdminDashboard() {
       <div className="zemba-page">
         <nav className="zemba-nav">
           <span className="brand">Zemba Marketplace — Admin</span>
-          <div><a href="/admin/orders">Stuck orders</a><a href="/admin/payouts">Money to move</a><a href="/admin/disputes">Disputes</a><a href="/admin/messages">Messages</a><a href="/admin/users">Users &amp; moderation</a><a href="/admin/verifications">ID checks</a><a href="/account">My account</a><a href="/api/admin/backup">Download backup</a></div>
+          <div><a href="/admin/orders">Stuck orders</a><a href="/admin/payouts">Money to move</a><a href="/admin/disputes">Disputes</a><a href="/admin/messages">Messages</a><a href="/admin/users">Users &amp; moderation</a><a href="/admin/flags">Flags &amp; reports</a><a href="/admin/email">Email users</a><a href="/admin/controls">Controls</a><a href="/admin/verifications">Verify sellers</a><a href="/account">My account</a><a href="/api/admin/backup">Download backup</a></div>
         </nav>
 
         <main style={{ position: 'relative', zIndex: 1, maxWidth: 820, margin: '1rem auto', padding: '0 1.5rem 4rem' }}>

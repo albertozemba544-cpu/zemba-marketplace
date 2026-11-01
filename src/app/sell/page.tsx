@@ -22,9 +22,9 @@ export default function SellPage() {
       <div className="zemba-legal">
         <ol>
           <li>Open a seller account with your NRC number, town and the MTN or Airtel mobile money number you want to be paid on.</li>
-          <li>We approve your account. This usually takes a day or two.</li>
-          <li>Add your products with clear photos, honest descriptions and the right price. Each product is approved before it goes live.</li>
-          <li>Optional but powerful: send a photo of your NRC and a selfie to earn the <strong>Verified seller</strong> badge.</li>
+          <li>Your shop is ready as soon as you register (confirm your email if we ask you to).</li>
+          <li>Add your products with clear photos, honest descriptions and the right price. Products go live straight away. Automatic checks and buyers' reports keep the marketplace clean, and anything suspicious is hidden until our team has looked at it.</li>
+          <li>Optional but powerful: ask for a short video call to check your ID and earn the <strong>Verified seller</strong> badge.</li>
           <li>When an order is paid, send the item within 3 days and upload a photo of the waybill or receipt.</li>
           <li>The buyer enters their delivery code, and your payout is sent to your mobile money.</li>
         </ol>

@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { execute, query, queryOne, withTransaction } from '@/lib/db';
+import { checkListing } from '@/lib/moderation';
 import { requireUser } from '@/lib/auth';
 import { removeUploadedImage, saveUploadedImage } from '@/lib/storage';
 import { fail, handleError, isUuid } from '@/lib/http';
@@ -85,12 +86,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       }
     }
 
-    const needsReview =
+    const contentChanged =
       title !== product.title ||
       description !== (product.description ?? '') ||
       category !== (product.category ?? 'General') ||
       toRemove.length > 0 ||
       uploaded.length > 0;
+
+    // Re-run the automatic checks when the content changed. Listings an admin flagged or removed stay as they are.
+    let nextApproval: string = product.approval_status;
+    let nextReason: string | null = product.flag_reason ?? null;
+    if (contentChanged && ['APPROVED', 'PENDING'].includes(product.approval_status)) {
+      const reasons = await checkListing(auth.user.id, { title, description, price }, { checkVolume: false });
+      nextApproval = reasons.length ? 'FLAGGED' : 'APPROVED';
+      nextReason = reasons.length ? reasons.join('; ') : null;
+    }
+    const needsReview = nextApproval === 'FLAGGED';
 
     await withTransaction(async (client) => {
       if (toRemove.length) {
@@ -106,9 +117,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         `UPDATE products
             SET title = $1, description = $2, category = $3, price = $4, stock = $5, status = $6,
                 image_url = $7,
-                approval_status = CASE WHEN $8::boolean THEN 'PENDING' ELSE approval_status END
+                approval_status = $8::varchar, flag_reason = $10,
+                flagged_at = CASE WHEN $8::varchar = 'APPROVED' THEN NULL WHEN $8::varchar = 'FLAGGED' THEN COALESCE(flagged_at, now()) ELSE flagged_at END
           WHERE id = $9`,
-        [title, description, category, Math.round(price * 100) / 100, stock, status, first.rows[0]?.url ?? null, needsReview, product.id]
+        [title, description, category, Math.round(price * 100) / 100, stock, status, first.rows[0]?.url ?? null, nextApproval, product.id, nextReason]
       );
     });
     await Promise.all(toRemove.map((img) => removeUploadedImage(img.url)));

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const product = await queryOne<any>(
       `SELECT p.*, COALESCE(u.business_name, u.full_name) AS seller_name
        FROM products p JOIN users u ON u.id = p.seller_id
-       WHERE p.id = $1 AND p.approval_status = 'APPROVED' AND p.status IN ('ACTIVE', 'LINK_ONLY')`,
+       WHERE p.id = $1 AND p.approval_status = 'APPROVED' AND p.status IN ('ACTIVE', 'LINK_ONLY') AND u.account_status = 'ACTIVE'`,
       [id]
     );
     if (!product) return fail('Product not found', 404);

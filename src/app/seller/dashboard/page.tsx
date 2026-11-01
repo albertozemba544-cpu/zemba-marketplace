@@ -117,7 +117,7 @@ export default function SellerDashboard() {
               <tbody>
                 {products.length === 0 && <tr><td colSpan={5} style={{ color: 'rgba(255,255,255,0.6)' }}>No listings yet.</td></tr>}
                 {products.map((p) => (
-                  <tr key={p.id}><td>{p.title}</td><td>K{p.price}</td><td>{p.stock}</td><td><span className={`zemba-pill ${p.approval_status === 'APPROVED' ? (p.status === 'ACTIVE' ? 'ok' : 'info') : p.approval_status === 'REJECTED' ? 'bad' : 'wait'}`}>{p.approval_status === 'APPROVED' ? (p.status === 'ACTIVE' ? 'Live' : 'Paused') : p.approval_status === 'REJECTED' ? 'Not approved' : 'Awaiting approval'}</span></td><td><a href={`/seller/listings/${p.id}/edit`} className="zemba-btn zemba-btn-secondary" style={{ padding: '0.35rem 0.8rem', fontSize: '0.8rem' }}>Edit</a></td></tr>
+                  <tr key={p.id}><td>{p.title}</td><td>K{p.price}</td><td>{p.stock}</td><td><span className={`zemba-pill ${p.approval_status === 'APPROVED' ? (p.status === 'ACTIVE' ? 'ok' : 'info') : p.approval_status === 'REJECTED' ? 'bad' : 'wait'}`} title={p.flag_reason || ''}>{p.approval_status === 'APPROVED' ? (p.status === 'ACTIVE' ? 'Live' : 'Paused') : p.approval_status === 'REJECTED' ? 'Removed' : 'Under review'}</span></td><td><a href={`/seller/listings/${p.id}/edit`} className="zemba-btn zemba-btn-secondary" style={{ padding: '0.35rem 0.8rem', fontSize: '0.8rem' }}>Edit</a></td></tr>
                 ))}
               </tbody>
             </table>
@@ -131,7 +131,7 @@ export default function SellerDashboard() {
                 {orders.length === 0 && <tr><td colSpan={5} style={{ color: 'rgba(255,255,255,0.6)' }}>No orders yet.</td></tr>}
                 {orders.map((o) => (
                   <tr key={o.id}>
-                    <td>{o.order_reference}{o.delivery_town && <><br /><small className="zemba-muted">Send to: {o.receiver_name}, {o.receiver_phone}<br />Town: {o.delivery_town}{o.delivery_note ? ` — ${o.delivery_note}` : ''}</small></>}{o.carrier_name && <><br /><small className="zemba-muted">{o.carrier_name} · waybill {o.waybill_number}</small></>}</td><td>K{o.amount}</td><td>K{o.net_amount}</td><td>{o.status}</td>
+                    <td><a href={`/checkout/${o.order_reference}`}>{o.order_reference}</a>{o.status === 'DISPUTED' && <><br /><span className="zemba-pill bad">Dispute — open it to reply</span></>}{o.delivery_town && <><br /><small className="zemba-muted">Send to: {o.receiver_name}, {o.receiver_phone}<br />Town: {o.delivery_town}{o.delivery_note ? ` — ${o.delivery_note}` : ''}</small></>}{o.carrier_name && <><br /><small className="zemba-muted">{o.carrier_name} · waybill {o.waybill_number}</small></>}</td><td>K{o.amount}</td><td>K{o.net_amount}</td><td>{o.status}</td>
                     <td>{o.status === 'FUNDS_SECURED' && (dispatching === o.id ? (
                       <form className="zemba-dispatch-form" onSubmit={(event) => dispatchOrder(event, o.id)}>
                         <select className="zemba-input" name="carrier_choice" required defaultValue="" onChange={(event) => { const box = event.currentTarget.form?.elements.namedItem('carrier_other') as HTMLInputElement | null; if (box) box.style.display = event.currentTarget.value === '__other' ? 'block' : 'none'; }}>

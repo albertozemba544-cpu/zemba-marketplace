@@ -15,7 +15,7 @@ export default function TermsPage() {
         </div>
 
         <h2>1. About these terms</h2>
-        <p>{SITE.name} (&quot;Zemba&quot;, &quot;we&quot;, &quot;us&quot;) is run by {SITE.legalName}{SITE.registrationNumber ? `, registration number ${SITE.registrationNumber}` : ''}{SITE.address ? `, ${SITE.address}` : ''}. By creating an account or using the website you agree to these terms, our <a href="/privacy">Privacy Policy</a> and our <a href="/refund-policy">Refund Policy</a>. If you do not agree, please do not use the website.</p>
+        <p>{SITE.name} (&quot;Zemba&quot;, &quot;we&quot;, &quot;us&quot;) is run by {SITE.legalName}{SITE.registrationNumber ? `, registration number ${SITE.registrationNumber}` : ' (business registration in progress)'}{SITE.address ? `, ${SITE.address}` : ''}. By creating an account or using the website you agree to these terms, our <a href="/privacy">Privacy Policy</a> and our <a href="/refund-policy">Refund Policy</a>. If you do not agree, please do not use the website.</p>
         <p>Zemba is a marketplace. Items are sold by independent sellers, not by Zemba. We provide the website and the escrow service that holds the buyer&apos;s payment until delivery is confirmed. We do not own, store, inspect or deliver the items.</p>
 
         <h2>2. Your account</h2>
@@ -24,7 +24,7 @@ export default function TermsPage() {
           <li>Give true and complete information, and keep it up to date. One person, one account.</li>
           <li>Keep your password private. You are responsible for everything done through your account. Tell us at once if you think someone else has used it.</li>
           <li>We may ask you to confirm your email address.</li>
-          <li>Seller accounts must be approved by us before they can log in or list products. We may refuse or remove an account if we are not satisfied with the details given.</li>
+          <li>Seller accounts can start selling straight after they register. We may suspend or close any account at any time, for example if people report it, if we find a rule has been broken, or if we are not satisfied with the details given.</li>
         </ul>
 
         <h2>3. How an order works</h2>
@@ -51,20 +51,21 @@ export default function TermsPage() {
         <h2>6. If something goes wrong</h2>
         <ul>
           <li>If a seller does not send the item in time, the buyer is refunded automatically.</li>
-          <li>While an order is paid and not yet confirmed, the buyer can open a dispute from the order page. Buyer and seller can then send messages, and a Zemba administrator reviews the case.</li>
-          <li>The administrator decides either to refund the buyer or to release the money to the seller. We will explain the decision. Inside the Zemba website our decision on how the escrowed money is paid out is final, but it does not limit any rights you have under Zambian law.</li>
+          <li>While an order is paid and not yet confirmed, the buyer can open a dispute from the order page. Buyer and seller then talk to each other there and try to agree a solution: a refund, paying the seller, or the buyer sending the item back and then being refunded.</li>
+          <li>When both of you accept a solution, it happens automatically. If you cannot agree, either of you can ask the Zemba team to step in. We may also step in after 7 days without agreement. The team then decides either to refund the buyer or to release the money to the seller, and explains the decision. Inside the Zemba website this decision on how the escrowed money is paid out is final, but it does not limit any rights you have under Zambian law.</li>
+          <li>In a serious situation, such as suspected fraud, we may put an order on hold or pause payments for a short while. We will tell the people involved.</li>
           <li>Full details are in our <a href="/refund-policy">Refund Policy</a>.</li>
         </ul>
 
         <h2>7. Rules for sellers</h2>
         <ul>
           <li>Provide your real name, NRC number, location and the mobile money number that payouts should be sent to. Check that number carefully. We are not responsible for a payout sent to the number you gave us.</li>
-          <li>Every listing must be approved by us before it appears. Changing a title, description or photo of a listing may send it back for approval.</li>
+          <li>Listings go live straight away. We check them automatically and look at reports from other users. A listing that looks wrong is hidden until our team has checked it, and we may remove any listing and tell you why.</li>
           <li>Listings must be honest: true descriptions, your own real photos, correct prices and stock. The item you send must match the listing.</li>
           <li>Send the item within 3 days of payment, with a real proof of dispatch, and set a realistic delivery window.</li>
           <li>Do not ask buyers to pay outside Zemba, and do not ask for the delivery code.</li>
           <li>When you send an order by bus or courier, record the company, the waybill number, where the buyer collects it, and upload a photo of the waybill or receipt. The photo must be real and show this order.</li>
-          <li>Sellers can ask for a <strong>Verified seller</strong> badge by sending a photo of their NRC and a selfie. The badge means we checked that ID when we looked at it. It is not a promise about the seller&apos;s honesty or the quality of their items, and we may remove it at any time, for example after complaints or if we find the details were false.</li>
+          <li>Sellers can ask for a <strong>Verified seller</strong> badge by showing their ID to a member of our team on a short video call. The badge means we checked that ID when we looked at it. We do not keep photos or recordings of it. It is not a promise about the seller&apos;s honesty or the quality of their items, and we may remove it at any time, for example after complaints or if we find the details were false.</li>
           <li>Buyers can see your track record: how long you have been on Zemba, orders completed, how quickly you dispatch, and how many orders were disputed. These numbers come from the website&apos;s own records and cannot be edited.</li>
           <li>Answer buyers and cooperate if there is a dispute.</li>
           <li>Payouts are sent to your registered mobile money number after delivery is confirmed or after a dispute is decided in your favour. You can follow each payout on your Payouts page.</li>
@@ -73,7 +74,7 @@ export default function TermsPage() {
         <h2>8. What you must not do</h2>
         <ul>
           <li>Sell or buy anything illegal, stolen, counterfeit, dangerous or harmful, including weapons, illegal drugs and anything you have no right to sell.</li>
-          <li>Post false, misleading or offensive listings, reviews or messages.</li>
+          <li>Post false, misleading or offensive listings, reviews or messages, or send false reports about other people.</li>
           <li>Try to cheat the escrow system, for example by making false claims, creating fake accounts or fake orders.</li>
           <li>Try to break into the website, interfere with it, or collect other people&apos;s information.</li>
           <li>Use the website to harass or threaten anyone.</li>

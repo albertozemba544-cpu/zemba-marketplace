@@ -612,3 +612,39 @@ html { scroll-behavior: smooth; }
 .zemba-mode-banner { padding: 0.45rem 1rem; text-align: center; font-size: 0.8rem; line-height: 1.4; }
 .zemba-mode-banner.test { background: #fff2ca; color: #6b4a00; border-bottom: 1px solid #f0d98a; }
 .zemba-mode-banner.soon { background: #e7f5ec; color: #0f5a3c; border-bottom: 1px solid #cde6d6; }
+
+/* ==========================================================================
+   Part 7 - disputes, reports, admin tools
+   ========================================================================== */
+.zemba-admin-links { display: flex; flex-wrap: wrap; gap: 0.2rem 0; justify-content: flex-end; }
+.zemba-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.6rem 0; }
+
+.zemba-dispute { margin-top: 1.6rem; padding: 1rem 1.1rem; border: 1px solid #f0d98a; border-radius: 12px; background: #fffaf0; }
+.zemba-dispute-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+.zemba-dispute-reason { margin: 0.5rem 0; }
+.zemba-proposal { margin: 0.8rem 0; padding: 0.8rem 0.9rem; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.zemba-proposal p { margin: 0 0 0.5rem; }
+.zemba-dispute-messages { max-height: 260px; margin: 0.8rem 0; padding: 0.7rem; overflow-y: auto; border-radius: 10px; background: rgba(11, 61, 44, 0.05); }
+.zemba-dispute-messages > div { margin-bottom: 0.6rem; font-size: 0.88rem; }
+.zemba-dispute-messages > div.mine { text-align: right; }
+.zemba-dispute-messages p { margin: 0.1rem 0; }
+.zemba-dispute-messages small { color: var(--muted); font-size: 0.72rem; }
+.zemba-escalate { margin-top: 0.9rem; padding-top: 0.8rem; border-top: 1px dashed var(--line); }
+
+.zemba-report { margin-top: 0.7rem; }
+.zemba-report-link { padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 0.8rem; text-decoration: underline; cursor: pointer; }
+.zemba-report-form { display: flex; flex-direction: column; gap: 0.5rem; max-width: 420px; padding: 0.9rem; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.zemba-report-form select, .zemba-report-form textarea { padding: 0.6rem; border: 1px solid #cddbd2; border-radius: 8px; font: inherit; }
+.zemba-report-done { margin: 0.7rem 0 0; color: var(--green); font-size: 0.85rem; }
+
+.zemba-flag-card { display: block; margin-top: 0.8rem; padding: 1rem 1.2rem; }
+.zemba-flag-main { display: flex; gap: 0.9rem; align-items: flex-start; }
+.zemba-flag-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; }
+.zemba-pick-list { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.8rem; }
+.zemba-pick-list button { padding: 0.55rem 0.7rem; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; font-size: 0.88rem; text-align: left; cursor: pointer; }
+.zemba-pick-list button.active { border-color: var(--green); background: var(--green-soft); }
+.zemba-page .zemba-flag-card .zemba-pill, .zemba-page .zemba-dispute .zemba-pill { color: inherit; }
+.zemba-page .zemba-pill.bad { color: #b42318 !important; }
+.zemba-page .zemba-pill.ok { color: #0d6e3d !important; }
+.zemba-page .zemba-pill.wait { color: #8a5a00 !important; }
+.zemba-page .zemba-pill.info { color: #1f4e8c !important; }

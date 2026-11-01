@@ -37,6 +37,9 @@ export interface EmailContent {
   lines: string[];
   buttonText?: string;
   buttonUrl?: string;
+  footerNote?: string; // replaces the usual grey line at the bottom
+  footerLinkText?: string;
+  footerLinkUrl?: string;
 }
 
 export function renderEmailHtml(content: EmailContent): string {
@@ -52,12 +55,12 @@ export function renderEmailHtml(content: EmailContent): string {
 <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #dfe7e2">
 <tr><td style="background:#0b3d2c;padding:18px 24px;color:#ffffff;font-size:18px;font-weight:700">${escapeHtml(SITE.name)}</td></tr>
 <tr><td style="padding:24px"><h1 style="margin:0 0 16px;font-size:20px;color:#0b3d2c">${escapeHtml(content.title)}</h1>${paragraphs}${button}
-<p style="margin:24px 0 0;color:#6d8277;font-size:12px">You are receiving this because of activity on your ${escapeHtml(SITE.name)} account.</p></td></tr>
+<p style="margin:24px 0 0;color:#6d8277;font-size:12px">${escapeHtml(content.footerNote || `You are receiving this because of activity on your ${SITE.name} account.`)}${content.footerLinkUrl ? ` <a href="${escapeHtml(content.footerLinkUrl)}" style="color:#6d8277">${escapeHtml(content.footerLinkText || 'Unsubscribe')}</a>` : ''}</p></td></tr>
 </table></td></tr></table></body></html>`;
 }
 
 export function renderEmailText(content: EmailContent): string {
-  return [content.title, '', ...content.lines, content.buttonUrl ? `\n${content.buttonText ?? 'Open'}: ${content.buttonUrl}` : ''].join('\n');
+  return [content.title, '', ...content.lines, content.buttonUrl ? `\n${content.buttonText ?? 'Open'}: ${content.buttonUrl}` : '', content.footerLinkUrl ? `\n${content.footerLinkText ?? 'Unsubscribe'}: ${content.footerLinkUrl}` : ''].join('\n');
 }
 
 /** Returns true if the provider accepted the email. */

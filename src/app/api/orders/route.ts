@@ -30,13 +30,14 @@ export async function POST(req: NextRequest) {
     const references = await withTransaction(async (client) => {
       const cart = await client.query(
         `SELECT c.id AS cart_item_id, c.quantity, p.id AS product_id, p.seller_id, p.title, p.price, p.stock,
-                p.approval_status, p.status AS product_status
+                p.approval_status, p.status AS product_status,
+                (SELECT su.account_status FROM users su WHERE su.id = p.seller_id) AS seller_status
          FROM cart_items c JOIN products p ON p.id = c.product_id
          WHERE c.customer_id = $1`,
         [auth.user.id]
       );
       if (cart.rows.length === 0) throw Object.assign(new Error('Cart is empty'), { userMessage: 'Your cart is empty' });
-      const unavailable = cart.rows.find((item) => item.approval_status !== 'APPROVED' || !['ACTIVE', 'LINK_ONLY'].includes(item.product_status));
+      const unavailable = cart.rows.find((item) => item.approval_status !== 'APPROVED' || !['ACTIVE', 'LINK_ONLY'].includes(item.product_status) || item.seller_status !== 'ACTIVE');
       if (unavailable) {
         throw Object.assign(new Error('Item unavailable'), { userMessage: `"${unavailable.title}" is no longer available. Please remove it from your cart.` });
       }

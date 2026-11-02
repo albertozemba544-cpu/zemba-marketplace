@@ -8,7 +8,6 @@ export default function Account() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [news, setNews] = useState(false);
-  const [wa, setWa] = useState(false);
   const [profileMsg, setProfileMsg] = useState('');
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -20,14 +19,14 @@ export default function Account() {
       return r.json();
     }).then((d) => {
       if (!d) return;
-      setMe(d); setName(d.full_name || ''); setPhone(d.phone_number || ''); setNews(Boolean(d.newsletter_opt_in)); setWa(Boolean(d.whatsapp_opt_in));
+      setMe(d); setName(d.full_name || ''); setPhone(d.phone_number || ''); setNews(Boolean(d.newsletter_opt_in));
     });
   }, []);
 
   async function saveProfile(event: React.FormEvent) {
     event.preventDefault();
     setProfileMsg('Saving…');
-    const response = await fetch('/api/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ full_name: name, phone_number: phone, newsletter_opt_in: news, whatsapp_opt_in: wa }) });
+    const response = await fetch('/api/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ full_name: name, phone_number: phone, newsletter_opt_in: news }) });
     const data = await response.json().catch(() => ({}));
     if (response.ok) {
       setProfileMsg('Saved.');
@@ -73,7 +72,6 @@ export default function Account() {
                 <label className="zemba-field">Email<input className="zemba-input" value={me.email} disabled /></label>
                 <p className="zemba-muted" style={{ marginTop: '-0.4rem' }}>{me.email_verified ? 'Your email is confirmed.' : 'Your email is not confirmed yet.'} To change your email address, <a href="/contact">contact us</a>.</p>
                 <label className="zemba-check"><input type="checkbox" checked={news} onChange={(e) => setNews(e.target.checked)} /><span>Send me news and offers from Zemba.</span></label>
-                <label className="zemba-check"><input type="checkbox" checked={wa} onChange={(e) => setWa(e.target.checked)} /><span>Send my order updates to my phone on WhatsApp.</span></label>
                 {profileMsg && <p className="zemba-muted">{profileMsg}</p>}
                 <button className="zemba-btn zemba-btn-primary">Save changes</button>
               </form>

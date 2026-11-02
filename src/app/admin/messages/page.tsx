@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AdminNav from '@/components/AdminNav';
 
 export default function AdminMessages() {
   const [messages, setMessages] = useState<any[] | null>(null);
@@ -23,10 +24,7 @@ export default function AdminMessages() {
 
   return (
     <div className="zemba-page">
-      <nav className="zemba-nav">
-        <a href="/admin/dashboard" className="brand">Zemba Marketplace — Admin</a>
-        <div><a href="/admin/dashboard">Overview</a><a href="/admin/orders">Stuck orders</a><a href="/admin/payouts">Money to move</a><a href="/admin/disputes">Disputes</a><a href="/admin/users">Users</a></div>
-      </nav>
+      <AdminNav />
       <main style={{ maxWidth: 780, margin: '1.5rem auto', padding: '0 1.5rem 4rem' }}>
         <h1 style={{ fontSize: '1.7rem' }}>Messages</h1>
         <p className="zemba-muted">Messages from the Contact page and suggestions from visitors.</p>

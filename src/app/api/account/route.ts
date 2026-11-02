@@ -31,8 +31,8 @@ export async function PATCH(req: NextRequest) {
     if (phone.length < 7 || phone.length > 20) return fail('Please enter a valid phone number');
 
     await queryOne(
-      'UPDATE users SET full_name = $1, phone_number = $2, newsletter_opt_in = $3, whatsapp_opt_in = $4 WHERE id = $5',
-      [fullName, phone, body.newsletter_opt_in === true, body.whatsapp_opt_in === true, auth.user.id]
+      'UPDATE users SET full_name = $1, phone_number = $2, newsletter_opt_in = $3 WHERE id = $4',
+      [fullName, phone, body.newsletter_opt_in === true, auth.user.id]
     );
     return NextResponse.json({ ok: true, full_name: fullName });
   } catch (error) {

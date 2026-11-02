@@ -30,7 +30,7 @@ export default function SellPage() {
         </ol>
 
         <h2>What it costs</h2>
-        <p>There is no fee to open a shop. When you make a sale, Zemba keeps {SITE.feePercent}% of the sale price, and you receive the rest. Payouts are sent within {SITE.payoutWorkingDays} working days after delivery is confirmed.</p>
+        <p>There is no fee to open a shop. When you make a sale, Zemba keeps {SITE.feePercent}% of the sale price, and you receive the rest. We send your payout as soon as we can after delivery is confirmed, and you can follow it on your Payouts page.</p>
 
         <h2>The rules in short</h2>
         <ul>

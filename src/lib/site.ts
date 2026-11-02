@@ -15,9 +15,7 @@ export const SITE = {
   registrationNumber: '', // add your PACRA registration number when you get it. While it is empty the legal pages say "business registration in progress"
   address: '', // your registered office address. Leave '' to hide it
   feePercent: 2.5, // Zemba's fee, taken from the seller's side of each sale
-  refundWorkingDays: 5, // working days you promise for refunds to reach the buyer
-  payoutWorkingDays: 3, // working days you promise for seller payouts after delivery is confirmed
-  legalUpdated: '30 October 2026', // change this date whenever you edit the legal pages
+  legalUpdated: '1 November 2026', // change this date whenever you edit the legal pages
 };
 
 /** The public address of the website, e.g. https://zemba-marketplace.vercel.app */

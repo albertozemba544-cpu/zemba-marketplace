@@ -24,7 +24,7 @@ export default function PrivacyPage() {
           <li><strong>If you apply for the Verified badge:</strong> a member of our team checks your NRC and your face on a short video call. We do not keep photos or recordings. We keep only the result (verified or not), the date and a short note about how we checked you. If we ever offer photo checks instead, we will tell you first and delete the photos as soon as we have decided.</li>
           <li><strong>Reports:</strong> if you report a listing or a person, we keep your report and who made it so our team can review it. The person you report is not told who reported them.</li>
           <li><strong>Delivery details:</strong> the name, phone number, town and pickup note you give at checkout. The seller sees them and passes them on to the bus company or courier that carries your item.</li>
-          <li><strong>Your choices:</strong> whether you want news and offers, and whether you want order updates on WhatsApp.</li>
+          <li><strong>Your choices:</strong> whether you want news and offers by email.</li>
           <li><strong>Your orders:</strong> what you bought or sold, amounts, order status, delivery code, proof-of-dispatch photos, dispute messages and notifications.</li>
           <li><strong>Your messages and reviews:</strong> anything you send through our contact form or suggestion box, and reviews you write.</li>
           <li><strong>When you accepted our terms:</strong> the date and time you created your account and agreed to our policies.</li>
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
           <li>To create and run your account and to confirm your email address.</li>
           <li>To process orders, hold payments in escrow, deliver payouts and refunds, and settle disputes.</li>
           <li>To check sellers and prevent fraud, abuse and unsafe listings.</li>
-          <li>To send you service messages, for example order updates and password reset links, by email and, where switched on, SMS.</li>
+          <li>To send you service messages, for example order updates and password reset links, by email.</li>
           <li>To answer your questions and improve the website.</li>
           <li>To send you important messages about the website, such as changes to our rules or your account. These go to every active user.</li>
           <li>To send news and offers, only if you chose to receive them. Each one has an unsubscribe link, and you can change your choice in My account at any time.</li>
@@ -48,9 +48,8 @@ export default function PrivacyPage() {
         <ul>
           <li><strong>The other person in your order.</strong> For example, sellers see the details needed to complete a sale, and buyers see the seller&apos;s business name.</li>
           <li><strong>Bus companies and couriers,</strong> through the seller, so that your item can be carried to you and you can be called when it arrives.</li>
-          <li><strong>A messaging service for WhatsApp,</strong> only if you ticked the WhatsApp box. We pass it your phone number and the text of the order update so that it can send the message.</li>
           <li><strong>Payment providers</strong> such as MTN and Airtel mobile money and any payment gateway we use, to take payments, send payouts and refunds.</li>
-          <li><strong>Service providers that help us run the website:</strong> Supabase (database and photo storage), Vercel (website hosting), Brevo (email) and, if switched on, Africa&apos;s Talking (SMS). They may only use the information to provide their service to us.</li>
+          <li><strong>Service providers that help us run the website:</strong> Supabase (database and photo storage), Vercel (website hosting), and Brevo (email). They may only use the information to provide their service to us.</li>
           <li><strong>Authorities</strong> when the law requires it, or to protect people from fraud or harm.</li>
         </ul>
         <p>Some of these providers keep information on servers outside Zambia. We choose providers with security safeguards and share only what is needed.</p>

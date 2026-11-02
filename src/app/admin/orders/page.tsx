@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AdminNav from '@/components/AdminNav';
 
 export default function AdminStuckOrders() {
   const [orders, setOrders] = useState<any[] | null>(null);
@@ -33,10 +34,7 @@ export default function AdminStuckOrders() {
 
   return (
     <div className="zemba-page">
-      <nav className="zemba-nav">
-        <a href="/admin/dashboard" className="brand">Zemba Marketplace — Admin</a>
-        <div><a href="/admin/dashboard">Overview</a><a href="/admin/payouts">Money to move</a><a href="/admin/disputes">Disputes</a><a href="/admin/messages">Messages</a><a href="/admin/users">Users</a></div>
-      </nav>
+      <AdminNav />
       <main style={{ maxWidth: 820, margin: '1.5rem auto', padding: '0 1.5rem 4rem' }}>
         <h1 style={{ fontSize: '1.7rem' }}>Stuck orders</h1>
         <p className="zemba-muted">These orders were dispatched but the delivery window ran out before the buyer confirmed. Look at the seller&apos;s proof of dispatch and decide who gets the money.</p>

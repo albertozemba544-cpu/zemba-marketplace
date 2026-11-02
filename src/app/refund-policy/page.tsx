@@ -25,7 +25,7 @@ export default function RefundPolicyPage() {
         <p>You get back the full amount you paid for the order. Buyers do not pay a Zemba fee. If your mobile money provider charges you for sending the original payment, that charge belongs to the provider and is not refunded by Zemba.</p>
 
         <h2>3. How and when you are refunded</h2>
-        <p>Refunds are sent back to the mobile money account you paid from. After a refund is approved we aim to complete it within {SITE.refundWorkingDays} working days. You will see the order marked as refunded and we will notify you by email, and by SMS where that is switched on.</p>
+        <p>Refunds are sent back to the mobile money account you paid from. After a refund is approved we send it as soon as we can. You will see the order marked as refunded and we will notify you by email.</p>
 
         <h2>4. Delivery windows and extra protection</h2>
         <p>When the seller marks your order as dispatched, they set a delivery window. We warn you 2 days before it ends. If your item is still on its way, you can extend your protection by 7 days from the order page, up to a maximum of 90 days in total. If the window ends and the seller has uploaded proof of dispatch, an administrator reviews the order before any money moves. We may ask both of you for more information.</p>
@@ -41,7 +41,7 @@ export default function RefundPolicyPage() {
         <p>You can open a dispute while the order is paid, dispatched, or waiting for review, and before you confirm delivery. You cannot dispute an order after you have entered the delivery code.</p>
 
         <h2>6. When the seller is paid</h2>
-        <p>The seller is paid when you confirm delivery with your code, or when a dispute is decided in the seller&apos;s favour. Sellers receive the sale price less the Zemba fee of {SITE.feePercent}%, sent to their registered mobile money number. We aim to send payouts within {SITE.payoutWorkingDays} working days.</p>
+        <p>The seller is paid when you confirm delivery with your code, or when a dispute is decided in the seller&apos;s favour. Sellers receive the sale price less the Zemba fee of {SITE.feePercent}%, sent to their registered mobile money number. We send payouts as soon as we can after that, and you can follow each one on your Payouts page.</p>
 
         <h2>7. What is not covered</h2>
         <ul>

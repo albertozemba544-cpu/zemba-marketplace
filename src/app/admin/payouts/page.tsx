@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AdminNav from '@/components/AdminNav';
 
 export default function AdminPayouts() {
   const [data, setData] = useState<any>(null);
@@ -34,10 +35,7 @@ export default function AdminPayouts() {
 
   return (
     <div className="zemba-page">
-      <nav className="zemba-nav">
-        <a href="/admin/dashboard" className="brand">Zemba Marketplace — Admin</a>
-        <div><a href="/admin/dashboard">Overview</a><a href="/admin/orders">Stuck orders</a><a href="/admin/disputes">Disputes</a><a href="/admin/messages">Messages</a><a href="/admin/users">Users</a></div>
-      </nav>
+      <AdminNav />
       <main style={{ maxWidth: 980, margin: '1.5rem auto', padding: '0 1.5rem 4rem' }}>
         <h1 style={{ fontSize: '1.7rem' }}>Money to move</h1>
         <p className="zemba-muted">Send each amount by mobile money, then type the transaction reference and press &quot;Mark as sent&quot;. The seller or buyer is told automatically and the payment is kept on record.</p>

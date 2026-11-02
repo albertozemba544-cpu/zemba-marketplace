@@ -9,7 +9,6 @@ export default function RegisterPage() {
   const [message, setMessage] = useState('');
   const [agree, setAgree] = useState(false);
   const [news, setNews] = useState(false);
-  const [wa, setWa] = useState(false);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('role') === 'seller') setRole('seller');
@@ -19,7 +18,7 @@ export default function RegisterPage() {
     event.preventDefault();
     if (!agree) { setMessage('Please accept the Terms of Use, Privacy Policy and Refund Policy.'); return; }
     setMessage('Creating account...');
-    const response = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, role, accept_terms: agree, newsletter_opt_in: news, whatsapp_opt_in: wa }) });
+    const response = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, role, accept_terms: agree, newsletter_opt_in: news }) });
     const data = await response.json();
     const confirm = data.needs_verification ? ' We emailed you a link - please confirm your email address first.' : '';
     setMessage(response.ok ? (role === 'seller' ? 'Seller account created.' + confirm + ' You can add your first product as soon as you log in.' : 'Account created.' + (confirm || ' You can log in now.')) : data.error || 'Could not create account.');
@@ -58,7 +57,6 @@ export default function RegisterPage() {
         <input className="zemba-input" type="password" placeholder="Password (8+ characters)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} minLength={8} required />
         <label className="zemba-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} required /><span>I am 18 or older and I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Use</a>, <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="/refund-policy" target="_blank" rel="noopener noreferrer">Refund Policy</a>.</span></label>
         <label className="zemba-check"><input type="checkbox" checked={news} onChange={(e) => setNews(e.target.checked)} /><span>Send me news and offers from Zemba (optional).</span></label>
-        <label className="zemba-check"><input type="checkbox" checked={wa} onChange={(e) => setWa(e.target.checked)} /><span>Send my order updates to my phone on WhatsApp (optional).</span></label>
         <button className="zemba-btn zemba-btn-primary" style={{ width: '100%' }}>Create account</button>
       </form>
       {message && <p className="zemba-auth-demo">{message}</p>}

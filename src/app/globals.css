@@ -648,3 +648,10 @@ html { scroll-behavior: smooth; }
 .zemba-page .zemba-pill.ok { color: #0d6e3d !important; }
 .zemba-page .zemba-pill.wait { color: #8a5a00 !important; }
 .zemba-page .zemba-pill.info { color: #1f4e8c !important; }
+
+/* ==========================================================================
+   Part 8 - cleanup: help button as a link, admin "Today" highlights
+   ========================================================================== */
+a.zemba-assistant-launcher { text-decoration: none; }
+.zemba-stat.zemba-alert { border-color: #f0b35a; background: #fffaf0; }
+.zemba-page .zemba-stat.zemba-alert strong { color: #b45309 !important; }

@@ -2,118 +2,85 @@
 
 import { useEffect, useState } from 'react';
 import SkyBackground from '@/components/SkyBackground';
+import AdminNav from '@/components/AdminNav';
 
-export default function AdminDashboard() {
-  const [stats, setStats] = useState<any>(null);
-  const [overview, setOverview] = useState<any>({ users: [], products: [], orders: [], disputes: [], events: [] });
-  const [announcement, setAnnouncement] = useState({ subject: '', body: '', audience: 'ALL' });
-  const [announcementMessage, setAnnouncementMessage] = useState('');
+const kwacha = (n: number) => `K${Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+export default function AdminToday() {
+  const [data, setData] = useState<any>(null);
+  const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
     const stored = localStorage.getItem('zemba_user');
-    if (!stored) { window.location.href = '/admin/login'; return; }
-    const u = JSON.parse(stored);
-    if (u.role !== 'admin') { window.location.href = '/admin/login'; return; }
-
-    fetch('/api/admin/overview').then((r) => {
+    if (!stored || JSON.parse(stored).role !== 'admin') { window.location.href = '/admin/login'; return; }
+    fetch('/api/admin/summary').then((r) => {
       if (r.status === 401 || r.status === 403) { localStorage.removeItem('zemba_user'); window.location.href = '/admin/login'; return null; }
       return r.json();
-    }).then((d) => {
-      if (!d || !d.orders) return;
-      setOverview(d);
-      const totalGMV = d.orders.reduce((s: number, o: any) => s + o.amount, 0);
-      const totalFees = d.orders.reduce((s: number, o: any) => s + o.platform_fee, 0);
-      setStats({ totalGMV, totalFees, count: d.orders.length, pendingUsers: d.users.filter((u: any) => u.approval_status === 'PENDING').length, pendingProducts: d.products.filter((p: any) => p.approval_status === 'PENDING').length });
-    });
+    }).then((d) => { if (d) setData(d); });
+    fetch('/api/admin/overview').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setOrders((d.orders || []).slice(0, 10)); });
   }, []);
 
-  async function decide(entity: 'user' | 'product', id: string, decision: 'APPROVED' | 'REJECTED') {
-    await fetch('/api/admin/approval', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entity, id, decision }) });
-    const response = await fetch('/api/admin/overview');
-    if (response.ok) setOverview(await response.json());
-  }
-
-  async function publishAnnouncement(event: React.FormEvent) {
-    event.preventDefault();
-    const response = await fetch('/api/admin/announcements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(announcement) });
-    const data = await response.json();
-    setAnnouncementMessage(response.ok ? `Announcement saved for ${data.recipientCount} subscribed users.` : data.error);
-    if (response.ok) setAnnouncement({ subject: '', body: '', audience: 'ALL' });
-  }
+  const n = data?.needs;
+  const tiles: { label: string; count: number; href: string; hint: string }[] = n ? [
+    { label: 'Disputes to decide', count: n.disputes_decide, href: '/admin/disputes', hint: 'The buyer and seller asked you to step in' },
+    { label: 'Stuck orders', count: n.stuck_orders, href: '/admin/orders', hint: 'The delivery window ran out' },
+    { label: 'Payouts to send', count: n.payouts_due, href: '/admin/payouts', hint: 'Money owed to sellers' },
+    { label: 'Refunds to send', count: n.refunds_due, href: '/admin/payouts', hint: 'Money owed to buyers' },
+    { label: 'Flagged listings', count: n.flagged_listings, href: '/admin/flags', hint: 'Hidden until you check them' },
+    { label: 'Reported people or listings', count: Number(n.open_reports) + Number(n.flagged_users), href: '/admin/flags', hint: 'Reported by users' },
+    { label: 'New messages', count: n.new_messages, href: '/admin/messages', hint: 'From the Contact page' },
+    { label: 'Orders on hold', count: n.held_orders, href: '/admin/controls', hint: 'You put these on hold' },
+  ] : [];
+  const urgent = tiles.reduce((sum, t) => sum + Number(t.count), 0);
 
   return (
     <>
       <SkyBackground mode="ambient" />
       <div className="zemba-page">
-        <nav className="zemba-nav">
-          <span className="brand">Zemba Marketplace — Admin</span>
-          <div><a href="/admin/orders">Stuck orders</a><a href="/admin/payouts">Money to move</a><a href="/admin/disputes">Disputes</a><a href="/admin/messages">Messages</a><a href="/admin/users">Users &amp; moderation</a><a href="/admin/flags">Flags &amp; reports</a><a href="/admin/email">Email users</a><a href="/admin/controls">Controls</a><a href="/admin/verifications">Verify sellers</a><a href="/account">My account</a><a href="/api/admin/backup">Download backup</a></div>
-        </nav>
-
-        <main style={{ position: 'relative', zIndex: 1, maxWidth: 820, margin: '1rem auto', padding: '0 1.5rem 4rem' }}>
-          {stats && (
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-              <div className="zemba-card" style={{ padding: '1.2rem 1.6rem', flex: 1, minWidth: 160 }}>
-                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>Total orders</div>
-                <div style={{ color: '#fff', fontSize: '1.6rem', fontWeight: 700 }}>{stats.count}</div>
-              </div>
-              <div className="zemba-card" style={{ padding: '1.2rem 1.6rem', flex: 1, minWidth: 160 }}>
-                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>GMV</div>
-                <div style={{ color: '#fff', fontSize: '1.6rem', fontWeight: 700 }}>K{stats.totalGMV.toFixed(2)}</div>
-              </div>
-              <div className="zemba-card" style={{ padding: '1.2rem 1.6rem', flex: 1, minWidth: 160 }}>
-                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>Platform fees (2.5%)</div>
-                <div style={{ color: '#fff', fontSize: '1.6rem', fontWeight: 700 }}>K{stats.totalFees.toFixed(2)}</div>
-              </div>
-              <div className="zemba-card" style={{ padding: '1.2rem 1.6rem', flex: 1, minWidth: 160 }}><div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>Pending approvals</div><div style={{ color: '#FFD37A', fontSize: '1.6rem', fontWeight: 700 }}>{stats.pendingUsers + stats.pendingProducts}</div></div>
-            </div>
-          )}
-
-          <section className="zemba-card" style={{ padding: '1.5rem', marginBottom: '1.2rem' }}>
-            <h3 style={{ color: '#fff', margin: '0 0 0.8rem' }}>Account approvals</h3>
-            <table className="zemba-table"><thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Details</th><th>Status</th><th>Action</th></tr></thead><tbody>
-              {overview.users.map((u: any) => (
-                <tr key={u.id}>
-                  <td>{u.business_name || u.full_name}</td>
-                  <td>{u.role}</td>
-                  <td>{u.email}</td>
-                  <td>
-                    {u.role === 'seller' && u.approval_status === 'PENDING' && (
-                      <div style={{ fontSize: '0.9rem', color: '#FFD37A' }}>
-                        <div>NRC: {u.nrc_number || 'Not provided'}</div>
-                        <div>Location: {u.location || 'Not provided'}</div>
-                      </div>
-                    )}
-                    {u.role !== 'seller' && <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)' }}>—</span>}
-                  </td>
-                  <td>{u.approval_status}</td>
-                  <td>{u.approval_status === 'PENDING' && <><button className="zemba-btn zemba-btn-primary" onClick={() => decide('user', u.id, 'APPROVED')}>Approve</button> <button className="zemba-btn zemba-btn-secondary" onClick={() => decide('user', u.id, 'REJECTED')}>Reject</button></>}</td>
-                </tr>
-              ))}
-            </tbody></table>
-          </section>
-
-          <section className="zemba-card" style={{ padding: '1.5rem', marginBottom: '1.2rem' }}>
-            <h3 style={{ color: '#fff', margin: '0 0 0.8rem' }}>Product approvals</h3>
-            <table className="zemba-table"><thead><tr><th>Product</th><th>Seller</th><th>Price</th><th>Status</th><th>Action</th></tr></thead><tbody>
-              {overview.products.map((p: any) => <tr key={p.id}><td>{p.title}</td><td>{p.business_name || p.seller_name}</td><td>K{p.price}</td><td>{p.approval_status}</td><td>{p.approval_status === 'PENDING' && <><button className="zemba-btn zemba-btn-primary" onClick={() => decide('product', p.id, 'APPROVED')}>Approve</button> <button className="zemba-btn zemba-btn-secondary" onClick={() => decide('product', p.id, 'REJECTED')}>Reject</button></>}</td></tr>)}
-            </tbody></table>
-          </section>
-
-          <section className="zemba-card" style={{ padding: '1.5rem' }}>
-            <h3 style={{ color: '#fff', margin: '0 0 0.8rem' }}>All orders</h3>
-            <table className="zemba-table">
-              <thead><tr><th>Reference</th><th>Amount</th><th>Fee</th><th>Status</th><th>Dispatch proof</th></tr></thead>
-              <tbody>
-                {overview.orders.length === 0 && <tr><td colSpan={5} style={{ color: 'rgba(255,255,255,0.6)' }}>No orders yet.</td></tr>}
-                {overview.orders.map((o: any) => (
-                  <tr key={o.id}><td>{o.order_reference}</td><td>K{o.amount}</td><td>K{o.platform_fee}</td><td>{o.status}</td><td>{o.waybill_image_url ? <a href={o.waybill_image_url} target="_blank" rel="noreferrer">View proof</a> : '—'}</td></tr>
+        <AdminNav />
+        <main style={{ maxWidth: 1000, margin: '1.5rem auto', padding: '0 1.5rem 4rem' }}>
+          <h1 style={{ fontSize: '1.7rem', margin: 0 }}>Today</h1>
+          {!data && <p className="zemba-muted">Loading…</p>}
+          {data && (
+            <>
+              {data.payments_paused && <div className="zemba-form-error">Payments are PAUSED. <a href="/admin/controls">Open Controls</a> to resume.</div>}
+              <p className="zemba-muted">{urgent === 0 ? 'Nothing needs you right now. Everything else runs by itself.' : 'These are the things that need a person.'}</p>
+              <div className="zemba-stats">
+                {tiles.map((t) => (
+                  <a key={t.label} href={t.href} className={`zemba-card zemba-stat ${Number(t.count) > 0 ? 'zemba-alert' : ''}`} style={{ textDecoration: 'none' }}>
+                    <span className="zemba-muted">{t.label}</span>
+                    <strong>{t.count}</strong>
+                    <small className="zemba-muted">{t.hint}</small>
+                  </a>
                 ))}
-              </tbody>
-            </table>
-          </section>
-          <section className="zemba-card" style={{ padding: '1.5rem', marginTop: '1.2rem' }}><h3 style={{ color: '#fff' }}>Weekly newsletter / site update</h3><p style={{ color: 'rgba(255,255,255,0.7)' }}>Subscribers: {overview.newsletterSubscribers || 0}. Compose the next Zemba update here.</p><form onSubmit={publishAnnouncement}><input className="zemba-input" placeholder="Subject" value={announcement.subject} onChange={(e) => setAnnouncement({ ...announcement, subject: e.target.value })} required /><textarea className="zemba-input" placeholder="New products, Zambia marketplace news, safety updates..." value={announcement.body} onChange={(e) => setAnnouncement({ ...announcement, body: e.target.value })} required rows={4} /><button className="zemba-btn zemba-btn-primary">Publish update</button></form>{announcementMessage && <p style={{ color: '#FFD37A' }}>{announcementMessage}</p>}</section>
-          <section className="zemba-card" style={{ padding: '1.5rem', marginTop: '1.2rem' }}><h3 style={{ color: '#fff' }}>Recent activity</h3><table className="zemba-table"><tbody>{overview.events.map((e: any) => <tr key={e.id}><td>{e.created_at}</td><td>#{e.order_reference}</td><td>{e.event_type}</td></tr>)}</tbody></table></section>
+              </div>
+
+              <h2 style={{ fontSize: '1.25rem', marginTop: '2rem' }}>Money</h2>
+              <div className="zemba-stats">
+                <div className="zemba-card zemba-stat"><span className="zemba-muted">Held in escrow now</span><strong>{kwacha(data.money.held_in_escrow)}</strong><small className="zemba-muted">{data.money.orders_in_progress} orders in progress</small></div>
+                <div className="zemba-card zemba-stat"><span className="zemba-muted">Completed sales</span><strong>{kwacha(data.money.sales_completed)}</strong><small className="zemba-muted">{data.money.orders_completed} orders</small></div>
+                <div className="zemba-card zemba-stat"><span className="zemba-muted">Zemba fees earned</span><strong>{kwacha(data.money.fees_earned)}</strong><small className="zemba-muted">From completed orders</small></div>
+              </div>
+
+              <h2 style={{ fontSize: '1.25rem', marginTop: '2rem' }}>People and shop</h2>
+              <div className="zemba-stats">
+                <div className="zemba-card zemba-stat"><span className="zemba-muted">Buyers</span><strong>{data.people.buyers}</strong></div>
+                <div className="zemba-card zemba-stat"><span className="zemba-muted">Sellers</span><strong>{data.people.sellers}</strong></div>
+                <div className="zemba-card zemba-stat"><span className="zemba-muted">Live listings</span><strong>{data.people.live_listings}</strong></div>
+              </div>
+
+              <h2 style={{ fontSize: '1.25rem', marginTop: '2rem' }}>Latest orders</h2>
+              <section className="zemba-card" style={{ padding: '1rem', overflowX: 'auto' }}>
+                {orders.length === 0 ? <p className="zemba-muted">No orders yet.</p> : (
+                  <table className="zemba-table">
+                    <thead><tr><th>Order</th><th>Item</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+                    <tbody>{orders.map((o) => <tr key={o.id}><td>#{o.order_reference}</td><td>{o.title || '-'}</td><td>{kwacha(o.amount)}</td><td>{o.status}</td><td>{new Date(o.created_at).toLocaleDateString()}</td></tr>)}</tbody>
+                  </table>
+                )}
+              </section>
+              <p style={{ marginTop: '1.5rem' }}><a href="/api/admin/backup">Download a backup of your data</a></p>
+            </>
+          )}
         </main>
       </div>
     </>

@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     for (const r of batch) {
       const ok = await sendEmail(r.email, broadcast.subject, buildUpdateEmail(broadcast, r));
       await queryOne(
-        'UPDATE broadcast_recipients SET status = $3, error = $4, sent_at = CASE WHEN $3 = \'SENT\' THEN now() ELSE NULL END WHERE broadcast_id = $1 AND user_id = $2',
+        'UPDATE broadcast_recipients SET status = $3::varchar, error = $4, sent_at = CASE WHEN $3::varchar = \'SENT\' THEN now() ELSE NULL END WHERE broadcast_id = $1 AND user_id = $2',
         [broadcast_id, r.user_id, ok ? 'SENT' : 'FAILED', ok ? null : 'The email provider refused it (daily limit or a bad address)']
       );
       if (ok) sent++; else failed++;

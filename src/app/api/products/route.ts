@@ -90,9 +90,9 @@ export async function POST(req: NextRequest) {
     const id = await withTransaction(async (client) => {
       const created = await client.query(
         `INSERT INTO products (seller_id, title, description, price, category, stock, image_url, approval_status, status, flag_reason, flagged_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ACTIVE', $9, CASE WHEN $8::text = 'FLAGGED' THEN now() ELSE NULL END)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ACTIVE', $9, $10::timestamptz)
          RETURNING id`,
-        [auth.user.id, title, description, Math.round(price * 100) / 100, category || 'General', stock, urls[0] ?? null, flagged ? 'FLAGGED' : 'APPROVED', flagged ? reasons.join('; ') : null]
+        [auth.user.id, title, description, Math.round(price * 100) / 100, category || 'General', stock, urls[0] ?? null, flagged ? 'FLAGGED' : 'APPROVED', flagged ? reasons.join('; ') : null, flagged ? new Date().toISOString() : null]
       );
       const productId = created.rows[0].id as string;
       for (let i = 0; i < urls.length; i++) {

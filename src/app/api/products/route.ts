@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
               (SELECT COUNT(*) FROM product_reviews r WHERE r.product_id = p.id) AS review_count,
               (SELECT AVG(r.product_rating) FROM product_reviews r WHERE r.product_id = p.id) AS avg_rating
        FROM products p LEFT JOIN vendor_verification v ON v.user_id = p.seller_id
-       WHERE p.status = 'ACTIVE' AND p.approval_status = 'APPROVED'
+       WHERE p.status = 'ACTIVE' AND p.approval_status = 'APPROVED' AND p.stock > 0
          AND EXISTS (SELECT 1 FROM users su WHERE su.id = p.seller_id AND su.account_status = 'ACTIVE')
        ORDER BY p.created_at DESC`
     );

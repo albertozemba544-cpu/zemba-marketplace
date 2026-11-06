@@ -117,7 +117,7 @@ export default function SellerDashboard() {
               <tbody>
                 {products.length === 0 && <tr><td colSpan={5} style={{ color: 'rgba(255,255,255,0.6)' }}>No listings yet.</td></tr>}
                 {products.map((p) => (
-                  <tr key={p.id}><td>{p.title}</td><td>K{p.price}</td><td>{p.stock}</td><td><span className={`zemba-pill ${p.approval_status === 'APPROVED' ? (p.status === 'ACTIVE' ? 'ok' : 'info') : p.approval_status === 'REJECTED' ? 'bad' : 'wait'}`} title={p.flag_reason || ''}>{p.approval_status === 'APPROVED' ? (p.status === 'ACTIVE' ? 'Live' : 'Paused') : p.approval_status === 'REJECTED' ? 'Removed' : 'Under review'}</span></td><td><a href={`/seller/listings/${p.id}/edit`} className="zemba-btn zemba-btn-secondary" style={{ padding: '0.35rem 0.8rem', fontSize: '0.8rem' }}>Edit</a></td></tr>
+                  <tr key={p.id}><td>{p.title}</td><td>K{p.price}</td><td>{p.stock}</td><td><span className={`zemba-pill ${p.approval_status === 'APPROVED' ? (p.status === 'ACTIVE' ? (p.stock < 1 ? 'wait' : 'ok') : 'info') : p.approval_status === 'REJECTED' ? 'bad' : 'wait'}`} title={p.flag_reason || ''}>{p.approval_status === 'APPROVED' ? (p.status === 'ACTIVE' ? (p.stock < 1 ? 'Sold out — restock to show it again' : 'Live') : 'Paused') : p.approval_status === 'REJECTED' ? 'Removed' : 'Under review'}</span></td><td><a href={`/seller/listings/${p.id}/edit`} className="zemba-btn zemba-btn-secondary" style={{ padding: '0.35rem 0.8rem', fontSize: '0.8rem' }}>Edit</a></td></tr>
                 ))}
               </tbody>
             </table>

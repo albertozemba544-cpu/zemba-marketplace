@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
     const seller = await queryOne<{ name: string }>('SELECT COALESCE(business_name, full_name) AS name FROM users WHERE id = $1', [id]);
     const products = await query(
-      "SELECT id, title, price, category, stock, image_url FROM products WHERE seller_id = $1 AND status = 'ACTIVE' AND approval_status = 'APPROVED' ORDER BY created_at DESC",
+      "SELECT id, title, price, category, stock, image_url FROM products WHERE seller_id = $1 AND status = 'ACTIVE' AND approval_status = 'APPROVED' AND stock > 0 ORDER BY created_at DESC",
       [id]
     );
     const reviews = await queryOne<{ count: number; average: number }>(

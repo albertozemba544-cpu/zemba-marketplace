@@ -138,6 +138,7 @@ export async function markFundsSecured(
   provider: string
 ) {
   const deliveryCode = String(randomInt(100000, 1000000));
+  let soldOut: { title: string; seller_id: string } | null = null;
   const secured = await withTransaction(async (client) => {
     const updated = await client.query(
       `UPDATE orders
@@ -148,7 +149,10 @@ export async function markFundsSecured(
     );
     if (updated.rowCount === 0) return false;
     if (order.product_id) {
+      const before = await client.query('SELECT stock, title, seller_id FROM products WHERE id = $1 FOR UPDATE', [order.product_id]);
+      const row = before.rows[0];
       await client.query('UPDATE products SET stock = GREATEST(stock - $1, 0) WHERE id = $2', [order.quantity, order.product_id]);
+      if (row && row.stock > 0 && row.stock - order.quantity <= 0) soldOut = { title: row.title as string, seller_id: row.seller_id as string };
     }
     await logEvent(order.id, 'PAYMENT_SECURED', { provider, transaction_id: transactionId }, client);
     return true;
@@ -156,6 +160,7 @@ export async function markFundsSecured(
   if (!secured) return null;
   if (order.seller_id) await createNotification(order.id, order.seller_id, 'FUNDS_SECURED').catch(() => null);
   if (order.customer_id) await createNotification(order.id, order.customer_id, 'PAYMENT_RECEIVED').catch(() => null);
+  if (soldOut) await notifySoldOut(soldOut).catch(() => null);
   return deliveryCode;
 }
 
@@ -188,4 +193,18 @@ export async function notifySettlement(order: { id: string; customer_id: string 
     if (order.seller_id) tasks.push(createNotification(order.id, order.seller_id, 'REFUND_SELLER'));
   }
   await Promise.allSettled(tasks);
+}
+
+
+/** Tells the seller (by email) that one of their listings just sold out and is now hidden from the shop. */
+async function notifySoldOut(item: { title: string; seller_id: string }) {
+  const seller = await queryOne<any>('SELECT email, phone_number, full_name, role, whatsapp_opt_in FROM users WHERE id = $1', [item.seller_id]);
+  if (!seller) return;
+  const link = `${siteUrl()}/seller/dashboard`;
+  const subject = `Sold out: ${item.title}`;
+  const lines = [
+    `Good news: "${item.title}" has just sold out, so it is now hidden from the shop.`,
+    'If you have more to sell, change the stock number on the listing and it will show again straight away.',
+  ];
+  await notifyUser(seller, subject, { title: subject, lines, buttonText: 'Open my dashboard', buttonUrl: link }, `Zemba: "${item.title}" sold out. Add stock on your dashboard to show it again.`, { event: 'PRODUCT_SOLD_OUT', link });
 }

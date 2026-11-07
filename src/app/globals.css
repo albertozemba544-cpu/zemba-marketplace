@@ -655,3 +655,6 @@ html { scroll-behavior: smooth; }
 a.zemba-assistant-launcher { text-decoration: none; }
 .zemba-stat.zemba-alert { border-color: #f0b35a; background: #fffaf0; }
 .zemba-page .zemba-stat.zemba-alert strong { color: #b45309 !important; }
+
+.zemba-check-list { list-style: none; margin: 0.6rem 0 1rem; padding: 0; }
+.zemba-check-list li { margin-bottom: 0.4rem; }

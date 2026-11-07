@@ -63,9 +63,32 @@ export function renderEmailText(content: EmailContent): string {
   return [content.title, '', ...content.lines, content.buttonUrl ? `\n${content.buttonText ?? 'Open'}: ${content.buttonUrl}` : '', content.footerLinkUrl ? `\n${content.footerLinkText ?? 'Unsubscribe'}: ${content.footerLinkUrl}` : ''].join('\n');
 }
 
-/** Returns true if the provider accepted the email. */
-export async function sendEmail(to: string, subject: string, content: EmailContent): Promise<boolean> {
-  if (!isEmailConfigured() || !to) return false;
+/** What is switched on, for the admin "Email check" (never shows the secret key itself). */
+export function emailStatus() {
+  return {
+    provider: process.env.BREVO_API_KEY ? 'Brevo' : process.env.RESEND_API_KEY ? 'Resend' : null,
+    has_key: Boolean(process.env.BREVO_API_KEY || process.env.RESEND_API_KEY),
+    has_from: Boolean(process.env.EMAIL_FROM_ADDRESS),
+    from_address: process.env.EMAIL_FROM_ADDRESS || null,
+    has_admin_alert: Boolean(process.env.ADMIN_ALERT_EMAIL),
+  };
+}
+
+/** Turns the provider's error into plain words that say what to fix. */
+function explainEmailError(status: number, body: string): string {
+  const text = body.slice(0, 300);
+  const lower = text.toLowerCase();
+  if (status === 401) return 'The email provider did not accept your API key. Copy it again from Brevo (SMTP & API, then API Keys) into BREVO_API_KEY with no spaces, then redeploy.';
+  if (lower.includes('not yet activated') || lower.includes('permission_denied') || lower.includes('not activated')) return 'Brevo has not activated sending for your account yet. New Brevo accounts are checked first: open Brevo, finish any account validation it asks for, and contact Brevo support to activate transactional emails.';
+  if (lower.includes('sender') && (status === 400 || status === 403)) return 'Brevo does not accept the sender address. In Brevo open Senders, Domains & Dedicated IPs and verify exactly the address in EMAIL_FROM_ADDRESS, then try again.';
+  if (status === 403 || status === 429) return `The email provider refused it (${status}). Your daily limit may be used up, or the account needs activating. Details: ${text}`;
+  return `The email provider said (${status}): ${text}`;
+}
+
+/** Sends an email and tells you exactly why it failed if it did. */
+export async function sendEmailDetailed(to: string, subject: string, content: EmailContent): Promise<{ ok: boolean; error?: string }> {
+  if (!isEmailConfigured()) return { ok: false, error: 'Email is not set up yet. BREVO_API_KEY and EMAIL_FROM_ADDRESS must both be set in Vercel, and the site redeployed.' };
+  if (!to) return { ok: false, error: 'There is no email address to send to.' };
   const address = process.env.EMAIL_FROM_ADDRESS as string;
   const name = process.env.EMAIL_FROM_NAME || SITE.name;
   const html = renderEmailHtml(content);
@@ -75,8 +98,8 @@ export async function sendEmail(to: string, subject: string, content: EmailConte
     if (process.env.BREVO_API_KEY) {
       response = await fetchWithTimeout('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
-        headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ sender: { name, email: address }, to: [{ email: to }], subject, htmlContent: html, textContent: text }),
+        headers: { 'api-key': process.env.BREVO_API_KEY.trim(), 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ sender: { name, email: address.trim() }, to: [{ email: to }], subject, htmlContent: html, textContent: text }),
       });
     } else {
       response = await fetchWithTimeout('https://api.resend.com/emails', {
@@ -86,14 +109,20 @@ export async function sendEmail(to: string, subject: string, content: EmailConte
       });
     }
     if (!response.ok) {
-      console.error('Email provider rejected the message:', response.status, (await response.text()).slice(0, 300));
-      return false;
+      const body = await response.text();
+      console.error('Email provider rejected the message:', response.status, body.slice(0, 300));
+      return { ok: false, error: explainEmailError(response.status, body) };
     }
-    return true;
+    return { ok: true };
   } catch (error) {
     console.error('Email sending failed:', error);
-    return false;
+    return { ok: false, error: 'Could not reach the email provider. Check your internet connection or try again.' };
   }
+}
+
+/** Returns true if the provider accepted the email. */
+export async function sendEmail(to: string, subject: string, content: EmailContent): Promise<boolean> {
+  return (await sendEmailDetailed(to, subject, content)).ok;
 }
 
 /** Turns 097 123 4567, 260971234567 or +260971234567 into +260971234567. Returns null if it does not look like a phone number. */

@@ -6,7 +6,7 @@ export const SITE = {
   description: 'Escrow-backed marketplace for Zambia — buy, sell, and never get scammed.',
   phone: '+260 77 190 2162', // e.g. '+260 97 123 4567'
   whatsapp: '260771902162', // digits only, with country code, e.g. '260971234567'
-  email: 'albertozemba11@gmail.com', // e.g. 'support@yourdomain.com'
+  email: 'aztechinnovations@yahoo.com', // e.g. 'support@yourdomain.com'
   hours: 'Monday to Saturday, 08:00 – 17:00 (CAT)',
   location: 'Zambia',
 

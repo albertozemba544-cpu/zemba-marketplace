@@ -8,6 +8,7 @@ import { query, queryOne, logEvent } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { createNotification } from '@/lib/orders';
 import { fail, handleError, isUuid } from '@/lib/http';
+import { cancellationRefund, fullRefund } from '@/lib/fees';
 
 export async function GET(req: NextRequest) {
   const auth = await requireUser(req, ['admin']);
@@ -22,22 +23,33 @@ export async function GET(req: NextRequest) {
        WHERE o.status = 'COMPLETED' AND o.payout_status = 'DUE'
        ORDER BY o.updated_at ASC`
     );
-    const refunds = await query(
+    const refundRows = await query(
       `SELECT o.id, o.order_reference, o.amount, o.updated_at, p.title,
-              b.full_name AS buyer_name, b.phone_number AS buyer_phone
+              b.full_name AS buyer_name, b.phone_number AS buyer_phone,
+              EXISTS (SELECT 1 FROM transaction_events e WHERE e.order_id = o.id AND e.event_type = 'BUYER_CANCELLED') AS cancelled
        FROM orders o
        LEFT JOIN products p ON p.id = o.product_id
        JOIN users b ON b.id = o.customer_id
        WHERE o.status = 'REFUNDED' AND o.refund_status = 'DUE'
        ORDER BY o.updated_at ASC`
     );
-    const recent = await query(
+    // a buyer who cancelled gets the item price less the cancellation fee; any other refund is in full
+    const refunds = refundRows.map((o: any) => ({
+      ...o,
+      refund_amount: o.cancelled ? cancellationRefund(Number(o.amount)) : fullRefund(Number(o.amount)),
+    }));
+    const recentRows = await query(
       `SELECT o.order_reference, o.net_amount, o.amount, o.payout_status, o.payout_reference, o.payout_paid_at,
-              o.refund_status, o.refund_reference, o.refund_paid_at
+              o.refund_status, o.refund_reference, o.refund_paid_at,
+              EXISTS (SELECT 1 FROM transaction_events e WHERE e.order_id = o.id AND e.event_type = 'BUYER_CANCELLED') AS cancelled
        FROM orders o
        WHERE o.payout_status = 'PAID' OR o.refund_status = 'PAID'
        ORDER BY GREATEST(o.payout_paid_at, o.refund_paid_at) DESC NULLS LAST LIMIT 30`
     );
+    const recent = recentRows.map((o: any) => ({
+      ...o,
+      refund_amount: o.cancelled ? cancellationRefund(Number(o.amount)) : fullRefund(Number(o.amount)),
+    }));
     return NextResponse.json({ payouts, refunds, recent });
   } catch (error) {
     return handleError(error);

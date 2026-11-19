@@ -1,21 +1,29 @@
-// ✏️ EDIT THIS FILE - put your real contact details in the quotes below.
-// Anything you leave empty ('') is simply hidden on the Contact page.
+// Company details, contact details and fee rules used across the whole website.
+// The fee rules here feed the checkout, the order pages, the legal pages and the admin figures.
 
 export const SITE = {
   name: 'Zemba Marketplace',
   description: 'Escrow-backed marketplace for Zambia — buy, sell, and never get scammed.',
-  phone: '+260 77 190 2162', // e.g. '+260 97 123 4567'
-  whatsapp: '260771902162', // digits only, with country code, e.g. '260971234567'
-  email: 'aztechinnovations@yahoo.com', // e.g. 'support@yourdomain.com'
+  phone: '+260 77 190 2162',
+  whatsapp: '260771902162', // digits only, with country code
+  email: 'aztechinnovations@yahoo.com',
   hours: 'Monday to Saturday, 08:00 – 17:00 (CAT)',
   location: 'Zambia',
 
-  // ---- Used by the Terms, Privacy and Refund pages. Check every line with your lawyer. ----
-  legalName: 'AZTECH Innovations', // the name that runs the marketplace. Write it exactly as on your PACRA certificate
-  registrationNumber: '', // add your PACRA registration number when you get it. While it is empty the legal pages say "business registration in progress"
-  address: '', // your registered office address. Leave '' to hide it
-  feePercent: 2.5, // Zemba's fee, taken from the seller's side of each sale
-  legalUpdated: '1 November 2026', // change this date whenever you edit the legal pages
+  // ---- Company ----
+  legalName: 'AZTECH Innovations',
+  registrationNumber: '320261082033', // PACRA registration number
+  address: '', // registered office address; leave empty to hide it
+  legalUpdated: '19 November 2026', // shown on the legal pages
+
+  // ---- Fees and order rules ----
+  feePercent: 6, // seller commission: % of the item price, taken from the seller's payout
+  buyerFeePercent: 2, // buyer protection fee: % of the item price...
+  buyerFeeMin: 3, // ...with this minimum in kwacha per order
+  cancelFeePercent: 5, // fee when a buyer cancels a paid order before dispatch: % of the item price...
+  cancelFeeMin: 5, // ...with this minimum in kwacha
+  minOrder: 30, // smallest item value of one order, in kwacha
+  dispatchDays: 3, // days a seller has to dispatch a paid order
 };
 
 /** The public address of the website, e.g. https://zemba-marketplace.vercel.app */

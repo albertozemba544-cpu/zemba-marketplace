@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { statusInfo } from '@/lib/status';
 
-interface Order { id: string; order_reference: string; title: string | null; amount: number; status: string; created_at: string; quantity: number; }
+interface Order { id: string; order_reference: string; title: string | null; amount: number; total_amount?: number; status: string; created_at: string; quantity: number; }
 
 export default function MyOrders() {
   const [orders, setOrders] = useState<Order[] | null>(null);
@@ -63,7 +63,7 @@ export default function MyOrders() {
                 <span className="zemba-muted">#{order.order_reference} · {new Date(order.created_at).toLocaleDateString()}{order.quantity > 1 ? ` · Qty ${order.quantity}` : ''}</span>
               </div>
               <div className="zemba-order-right">
-                <strong>K{Number(order.amount).toFixed(2)}</strong>
+                <strong>K{Number(order.total_amount ?? order.amount).toFixed(2)}</strong>
                 <span className={`zemba-pill ${info.tone}`}>{info.label}</span>
               </div>
             </a>

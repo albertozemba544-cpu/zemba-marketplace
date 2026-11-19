@@ -12,6 +12,12 @@ Built with Next.js 14, hosted on Vercel, with Supabase (database and photos) and
 ## Updating a project that is already running
 Run only the newest `db/migration-N.sql` files you have not run yet, then upload the new files.
 
+## Fees and order rules
+All fee rules live in `src/lib/site.ts` (seller commission, buyer protection fee, cancellation fee, minimum order) and `src/lib/fees.ts` does the maths. The checkout, order pages, legal pages, help pages and admin figures all read from them, so change a number in `site.ts` only.
+
+## Install as an app
+The website installs on phones from the browser (`src/app/manifest.ts`, `public/sw.js`, `src/components/PwaSetup.tsx`). No app store is needed.
+
 ## Where things are
 - `src/lib/site.ts` - your company and contact details (change them here only)
 - `src/lib/moderation.ts` - the rules that automatically hide suspicious listings

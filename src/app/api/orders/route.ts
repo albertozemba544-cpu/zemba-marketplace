@@ -8,6 +8,8 @@ import { randomUUID } from 'crypto';
 import { computeFees, logEvent, query, withTransaction } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { fail, handleError } from '@/lib/http';
+import { SITE } from '@/lib/site';
+import { kwacha, meetsMinimumOrder, withBuyerFees } from '@/lib/fees';
 
 const ORDER_COLUMNS = `o.id, o.order_reference, o.customer_id, o.seller_id, o.product_id, o.quantity, o.amount,
   o.platform_fee, o.net_amount, o.status, o.waybill_image_url, o.timeout_days, o.created_at, o.updated_at, p.title,
@@ -48,6 +50,11 @@ export async function POST(req: NextRequest) {
           throw Object.assign(new Error('Not enough stock'), { userMessage: `Not enough stock for "${item.title}"` });
         }
         const lineTotal = Math.round(Number(item.price) * item.quantity * 100) / 100;
+        if (!meetsMinimumOrder(lineTotal)) {
+          throw Object.assign(new Error('Below minimum order'), {
+            userMessage: `The minimum order is ${kwacha(SITE.minOrder)}. \"${item.title}\" comes to ${kwacha(lineTotal)}, so please increase the quantity.`,
+          });
+        }
         const { platform_fee, net_amount } = computeFees(lineTotal);
         const id = randomUUID();
         const reference = id.replace(/-/g, '').slice(0, 10).toUpperCase();
@@ -85,7 +92,7 @@ export async function GET(req: NextRequest) {
         : user.role === 'customer'
           ? await query(`${base} WHERE o.customer_id = $1 ORDER BY o.created_at DESC`, [user.id])
           : await query(`${base} ORDER BY o.created_at DESC LIMIT 100`);
-    return NextResponse.json({ orders });
+    return NextResponse.json({ orders: orders.map((order: any) => withBuyerFees(order)) });
   } catch (error) {
     return handleError(error);
   }

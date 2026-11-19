@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import InfoPage from '@/components/InfoPage';
+import { SITE } from '@/lib/site';
+import { kwacha } from '@/lib/fees';
 
 export const metadata: Metadata = {
   title: 'Help centre',
@@ -9,17 +11,20 @@ export const metadata: Metadata = {
 const BUYERS = [
   ['How does escrow protect me?', 'When you pay, your money is held safely by Zemba - the seller does not receive it yet. The seller ships your order, and only after you confirm that it arrived is the money released to them.'],
   ['What is the delivery code?', 'After you pay, you get a 6-digit delivery code on your order page. Give the seller the code only when the item is in your hands. Entering it on the order page releases the payment to the seller.'],
-  ['The seller has not shipped my order. What now?', 'Sellers have 3 days to ship a paid order. If they do not, the order is refunded to you automatically.'],
+  ['What does it cost to buy?', `Buyers pay a buyer protection fee of ${SITE.buyerFeePercent}% of the item price, with a minimum of ${kwacha(SITE.buyerFeeMin)} per order. You see the total, including the fee, before you pay. Each order must be at least ${kwacha(SITE.minOrder)}.`],
+  ['The seller has not shipped my order. What now?', `Sellers have ${SITE.dispatchDays} days to ship a paid order. If they do not, the order is refunded to you automatically, in full, including the buyer protection fee.`],
+  ['Can I cancel an order?', `Yes, until the seller has dispatched it. Open the order and choose "Cancel this order". You get the item price back less a cancellation fee of ${SITE.cancelFeePercent}% (minimum ${kwacha(SITE.cancelFeeMin)}). The buyer protection fee is not refunded. After the seller has dispatched the order it cannot be cancelled, but you can open a dispute if the item does not arrive or is not as described.`],
   ['My order has not arrived yet.', 'Your money stays protected while the item is on its way. If the delivery window is about to end you will get a reminder, and you can extend your protection by 7 days from the order page.'],
   ['Something is wrong with my order. What can I do?', 'Open the order from "My orders" and choose "Open a dispute". Tell us what went wrong, then talk to the seller there and agree a solution, such as a refund or sending the item back. If you cannot agree, ask the Zemba team to step in and they will decide.'],
-  ['How do refunds work?', 'If a refund is approved, the amount is sent back to your mobile money number and you get a message when it has been sent.'],
+  ['How do refunds work?', 'If the seller did not deliver, you get back everything you paid. If you cancelled before dispatch, you get back the item price less the cancellation fee. The refund is sent to your mobile money number and you get a message when it has been sent. See the Refund Policy for details.'],
   ['I forgot my password.', 'On the sign-in page choose "Forgot your password?" and we will email you a link to choose a new one.'],
 ];
 
 const SELLERS = [
   ['How do I start selling?', 'Create a seller account and add your products. They go live straight away. Anything that looks suspicious is hidden until our team has checked it.'],
-  ['When do I get paid?', 'After the buyer confirms delivery, your payment (the sale price minus Zemba\'s service fee) is sent to the mobile money number on your account. You can follow every payout under "Payouts" in your seller dashboard.'],
-  ['What do I need to do after an order is paid?', 'Ship the item within 3 days, then mark it as dispatched and upload a photo of your proof of dispatch (for example the bus or courier receipt).'],
+  ['What does it cost to sell?', `Opening a shop and listing items is free. When a sale is completed, Zemba keeps a commission of ${SITE.feePercent}% of the item price. Buyers pay their own protection fee on top of your price. Each order must be at least ${kwacha(SITE.minOrder)}.`],
+  ['When do I get paid?', 'After the buyer confirms delivery, your payment (the item price minus the Zemba commission) is sent to the mobile money number on your account. You can follow every payout under "Payouts" in your seller dashboard.'],
+  ['What do I need to do after an order is paid?', `Ship the item within ${SITE.dispatchDays} days, then mark it as dispatched and upload a photo of your proof of dispatch (for example the bus or courier receipt). If you do not, the buyer is refunded in full and the cost of that refund may be deducted from your other payouts.`],
   ['Can I edit or remove a listing?', 'Yes. Open your dashboard and choose Edit next to a listing. Price, stock and pausing take effect straight away. Changing the title, description or photos sends the listing for a quick re-check.'],
   ['What is a quick link?', 'A quick link is a payment page for one item that you can share on WhatsApp, Facebook or Instagram. The buyer still pays through escrow.'],
 ];

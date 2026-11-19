@@ -31,7 +31,7 @@ export default function AdminPayouts() {
 
   const money = (v: number) => `K${Number(v || 0).toFixed(2)}`;
   const totalPayouts = (data?.payouts || []).reduce((sum: number, o: any) => sum + Number(o.net_amount), 0);
-  const totalRefunds = (data?.refunds || []).reduce((sum: number, o: any) => sum + Number(o.amount), 0);
+  const totalRefunds = (data?.refunds || []).reduce((sum: number, o: any) => sum + Number(o.refund_amount ?? o.amount), 0);
 
   return (
     <div className="zemba-page">
@@ -79,7 +79,7 @@ export default function AdminPayouts() {
                       <td>#{o.order_reference}<br /><small className="zemba-muted">{o.title}</small></td>
                       <td>{o.buyer_name}</td>
                       <td>{o.buyer_phone}</td>
-                      <td><strong>{money(o.amount)}</strong></td>
+                      <td><strong>{money(o.refund_amount ?? o.amount)}</strong>{o.cancelled && <><br /><small className="zemba-muted">buyer cancelled: item price less cancellation fee</small></>}</td>
                       <td><input className="zemba-input" style={{ margin: 0, minWidth: 130 }} placeholder="MoMo ref" value={refs[o.id] || ''} onChange={(e) => setRefs({ ...refs, [o.id]: e.target.value })} /></td>
                       <td><button className="zemba-btn zemba-btn-primary" disabled={busy === o.id} onClick={() => markPaid(o.id, 'refund')}>Mark as sent</button></td>
                     </tr>
@@ -100,7 +100,7 @@ export default function AdminPayouts() {
                       <tr key={o.order_reference + (refund ? 'r' : 'p')}>
                         <td>#{o.order_reference}</td>
                         <td>{refund ? 'Refund' : 'Seller payout'}</td>
-                        <td>{money(refund ? o.amount : o.net_amount)}</td>
+                        <td>{money(refund ? (o.refund_amount ?? o.amount) : o.net_amount)}</td>
                         <td>{refund ? o.refund_reference : o.payout_reference}</td>
                         <td>{new Date(refund ? o.refund_paid_at : o.payout_paid_at).toLocaleDateString()}</td>
                       </tr>

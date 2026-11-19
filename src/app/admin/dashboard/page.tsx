@@ -59,7 +59,7 @@ export default function AdminToday() {
               <div className="zemba-stats">
                 <div className="zemba-card zemba-stat"><span className="zemba-muted">Held in escrow now</span><strong>{kwacha(data.money.held_in_escrow)}</strong><small className="zemba-muted">{data.money.orders_in_progress} orders in progress</small></div>
                 <div className="zemba-card zemba-stat"><span className="zemba-muted">Completed sales</span><strong>{kwacha(data.money.sales_completed)}</strong><small className="zemba-muted">{data.money.orders_completed} orders</small></div>
-                <div className="zemba-card zemba-stat"><span className="zemba-muted">Zemba fees earned</span><strong>{kwacha(data.money.fees_earned)}</strong><small className="zemba-muted">From completed orders</small></div>
+                <div className="zemba-card zemba-stat"><span className="zemba-muted">Zemba fees earned</span><strong>{kwacha(data.money.fees_earned)}</strong><small className="zemba-muted">Commission and buyer fees</small></div>
               </div>
 
               <h2 style={{ fontSize: '1.25rem', marginTop: '2rem' }}>People and shop</h2>

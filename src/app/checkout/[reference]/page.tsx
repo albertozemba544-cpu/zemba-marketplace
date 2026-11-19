@@ -6,6 +6,7 @@ import SkyBackground from '@/components/SkyBackground';
 import OrderProtectionActions from '@/components/OrderProtectionActions';
 import DisputePanel from '@/components/DisputePanel';
 import { SITE } from '@/lib/site';
+import { kwacha } from '@/lib/fees';
 
 const STATUS_COPY: Record<string, string> = {
   PENDING_PAYMENT: 'Waiting for payment',
@@ -54,7 +55,12 @@ export default function OrderStatus() {
         <main style={{ position: 'relative', zIndex: 1, maxWidth: 480, margin: '3rem auto', padding: '0 1.5rem' }}>
           <div className="zemba-card" style={{ padding: '2rem' }}>
             <p style={{ color: 'rgba(255,255,255,0.75)' }}>Order #{order.order_reference}{order.title ? ` — ${order.title}` : ''}</p>
-            <p style={{ color: '#fff', fontSize: '2rem', margin: '0.3rem 0' }}>K{Number(order.amount).toFixed(2)}</p>
+            <p style={{ color: '#fff', fontSize: '2rem', margin: '0.3rem 0' }}>K{Number((isBuyer ? order.total_amount : order.amount) ?? order.amount).toFixed(2)}</p>
+            {isBuyer && order.buyer_fee !== undefined && (
+              <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, margin: '0 0 0.6rem' }}>
+                Item K{Number(order.amount).toFixed(2)} + buyer protection fee K{Number(order.buyer_fee).toFixed(2)}
+              </p>
+            )}
             <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 999, background: 'rgba(255,211,122,0.25)', color: '#FFD37A', fontSize: 13 }}>
               {STATUS_COPY[order.status] ?? order.status}
             </span>
@@ -75,11 +81,21 @@ export default function OrderStatus() {
               </div>
             )}
 
+            {isBuyer && order.status === 'REFUNDED' && order.cancel_refund !== undefined && (
+              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: '0.8rem' }}>
+                {order.cancelled
+                  ? `You cancelled this order before dispatch. Your refund is ${kwacha(order.cancel_refund)} (the item price less the cancellation fee of ${kwacha(order.cancel_fee)}).`
+                  : `Your refund is the full amount you paid, ${kwacha(order.total_amount)}, including the buyer protection fee.`}
+              </p>
+            )}
+
             {isBuyer && order.status === 'PENDING_PAYMENT' && <PaymentAction reference={order.order_reference} onDone={loadOrder} />}
 
             {isBuyer && (order.status === 'FUNDS_SECURED' || order.status === 'DISPATCHED') && (
               <DeliveryAction reference={order.order_reference} deliveryCode={order.delivery_code} onDone={loadOrder} />
             )}
+
+            {isBuyer && order.status === 'FUNDS_SECURED' && <CancelAction reference={order.order_reference} fee={order.cancel_fee} refund={order.cancel_refund} buyerFee={order.buyer_fee} onDone={loadOrder} />}
 
             <DisputePanel order={order} dispute={dispute} user={user} onChanged={loadOrder} />
 
@@ -149,5 +165,38 @@ function DeliveryAction({ reference, deliveryCode, onDone }: { reference: string
       <button className="zemba-btn zemba-btn-primary" style={{ width: '100%' }} disabled={busy}>{busy ? 'Confirming…' : 'Confirm Delivery'}</button>
       {error && <p style={{ color: '#FFD9D9', fontSize: '0.85rem' }}>⚠ {error}</p>}
     </form>
+  );
+}
+
+function CancelAction({ reference, fee, refund, buyerFee, onDone }: { reference: string; fee: number; refund: number; buyerFee: number; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function cancel() {
+    setBusy(true);
+    setError('');
+    const response = await fetch(`/api/orders/${reference}/cancel`, { method: 'POST' });
+    setBusy(false);
+    if (response.ok) { setOpen(false); onDone(); }
+    else setError((await response.json().catch(() => ({}))).error || 'Could not cancel this order');
+  }
+
+  return (
+    <div style={{ marginTop: '1.2rem' }}>
+      {!open ? (
+        <button type="button" className="zemba-btn zemba-btn-secondary" style={{ width: '100%' }} onClick={() => setOpen(true)}>Cancel this order</button>
+      ) : (
+        <div style={{ padding: '0.9rem', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.06)' }}>
+          <p style={{ color: '#fff', margin: '0 0 0.5rem', fontWeight: 600 }}>Cancel before the seller sends it?</p>
+          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.88rem', margin: '0 0 0.7rem' }}>
+            You will be refunded <strong>{kwacha(refund)}</strong>: the item price less a cancellation fee of {kwacha(fee)} ({SITE.cancelFeePercent}% of the item price, minimum {kwacha(SITE.cancelFeeMin)}). The buyer protection fee of {kwacha(buyerFee)} is not refunded. After the seller sends the order it can no longer be cancelled.
+          </p>
+          <button type="button" className="zemba-btn zemba-btn-primary" style={{ width: '100%', marginBottom: '0.5rem' }} onClick={cancel} disabled={busy}>{busy ? 'Cancelling…' : 'Yes, cancel my order'}</button>
+          <button type="button" className="zemba-btn zemba-btn-secondary" style={{ width: '100%' }} onClick={() => setOpen(false)} disabled={busy}>Keep my order</button>
+        </div>
+      )}
+      {error && <p style={{ color: '#FFD9D9', fontSize: '0.85rem' }}>⚠ {error}</p>}
+    </div>
   );
 }

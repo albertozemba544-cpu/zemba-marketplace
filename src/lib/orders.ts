@@ -5,11 +5,15 @@ import { PoolClient } from 'pg';
 import { logEvent, queryOne, withTransaction } from './db';
 import { notifyUser } from './notify';
 import { siteUrl } from './site';
+import { cancellationRefund, fullRefund, totalToPay } from './fees';
 
 interface NotifyOrder {
-  amount: number;
-  net_amount: number;
+  amount: number; // item price
+  net_amount: number; // what the seller is paid
   reference: string;
+  total_amount: number; // what the buyer paid (item price + buyer protection fee)
+  refund_amount: number; // what the buyer gets back
+  cancelled: boolean; // true when the buyer cancelled before dispatch
 }
 interface Template {
   subject: string;
@@ -26,7 +30,7 @@ const TEMPLATES: Record<string, Template> = {
   },
   PAYMENT_RECEIVED: {
     subject: 'Your payment is secured',
-    text: (o) => `Zemba: Your payment for order #${o.reference} (${money(o.amount)}) is held safely in escrow. Your delivery code is on your order page.`,
+    text: (o) => `Zemba: Your payment for order #${o.reference} (${money(o.total_amount)}) is held safely in escrow. Your delivery code is on your order page.`,
   },
   DISPATCHED: {
     subject: 'Your order has been dispatched',
@@ -50,7 +54,14 @@ const TEMPLATES: Record<string, Template> = {
   },
   REFUND_BUYER: {
     subject: 'Your order was refunded',
-    text: (o) => `Zemba: Order #${o.reference} was refunded. ${money(o.amount)} will be sent back to your mobile money.`,
+    text: (o) =>
+      o.cancelled
+        ? `Zemba: Order #${o.reference} was cancelled. ${money(o.refund_amount)} (the item price less the cancellation fee) will be sent back to your mobile money.`
+        : `Zemba: Order #${o.reference} was refunded. ${money(o.refund_amount)} will be sent back to your mobile money.`,
+  },
+  ORDER_CANCELLED: {
+    subject: 'The buyer cancelled an order',
+    text: (o) => `Zemba: The buyer cancelled order #${o.reference} before dispatch. Please do not send it. No payout is due for this order.`,
   },
   REFUND_SELLER: {
     subject: 'An order was refunded to the buyer',
@@ -70,7 +81,7 @@ const TEMPLATES: Record<string, Template> = {
   },
   REFUND_SENT: {
     subject: 'Your refund was sent',
-    text: (o, extra) => `Zemba: We refunded ${money(o.amount)} for order #${o.reference} to your mobile money.${extra ? ` Ref: ${extra}` : ''}`,
+    text: (o, extra) => `Zemba: We refunded ${money(o.refund_amount)} for order #${o.reference} to your mobile money.${extra ? ` Ref: ${extra}` : ''}`,
   },
 };
 
@@ -89,11 +100,20 @@ export async function createNotification(
 ) {
   const template = TEMPLATES[type];
   if (!template) return null;
-  const order = await queryOne<{ amount: number; net_amount: number; reference: string }>(
-    'SELECT amount, net_amount, order_reference AS reference FROM orders WHERE id = $1',
+  const row = await queryOne<{ amount: number; net_amount: number; reference: string; cancelled: boolean }>(
+    `SELECT amount, net_amount, order_reference AS reference,
+            EXISTS (SELECT 1 FROM transaction_events e WHERE e.order_id = orders.id AND e.event_type = 'BUYER_CANCELLED') AS cancelled
+     FROM orders WHERE id = $1`,
     [orderId]
   );
-  if (!order) return null;
+  if (!row) return null;
+  const itemPrice = Number(row.amount);
+  const order: NotifyOrder = {
+    ...row,
+    amount: itemPrice,
+    total_amount: totalToPay(itemPrice),
+    refund_amount: row.cancelled ? cancellationRefund(itemPrice) : fullRefund(itemPrice),
+  };
   const message = template.text(order, extra);
   const sql = `INSERT INTO order_notifications (order_id, recipient_id, notification_type, message)
                VALUES ($1, $2, $3, $4)
@@ -165,7 +185,7 @@ export async function markFundsSecured(
 }
 
 /**
- * Closes an order for good: "release" pays the seller, "refund" returns the money to the buyer.
+ * Closes an order for good: "release" pays the seller, "refund" returns the money to the buyer (in full, including the buyer protection fee).
  * The payout / refund itself is sent by hand for now, so it is added to the admin "Money to move" list.
  * Run it inside a transaction; call notifySettlement() after the commit.
  */

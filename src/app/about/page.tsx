@@ -21,7 +21,7 @@ export default function AboutPage() {
         </ul>
 
         <h2>Who we are</h2>
-        <p>{SITE.name} is built and run by {SITE.legalName}, a Zambian technology company. We want local sellers to grow and local buyers to feel safe.</p>
+        <p>{SITE.name} is built and run by {SITE.legalName}, a Zambian technology company{SITE.registrationNumber ? `, registered with PACRA under registration number ${SITE.registrationNumber}` : ''}. We want local sellers to grow and local buyers to feel safe.</p>
 
         <h2>Say hello</h2>
         <p>Questions, ideas or feedback? We would love to hear from you. Visit our <a href="/contact">contact page</a>, or read <a href="/how-it-works">how Zemba works</a>.</p>

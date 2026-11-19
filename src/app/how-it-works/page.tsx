@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import InfoPage from '@/components/InfoPage';
+import { SITE } from '@/lib/site';
+import { kwacha } from '@/lib/fees';
 
 export const metadata: Metadata = {
   title: 'How Zemba works',
@@ -38,8 +40,10 @@ export default function HowItWorksPage() {
       <Steps items={BUYER_STEPS} />
       <h2 className="zemba-info-h2">If you are selling</h2>
       <Steps items={SELLER_STEPS} />
+      <h2 className="zemba-info-h2">What does it cost?</h2>
+      <p className="zemba-info-text">Buyers pay a small buyer protection fee of {SITE.buyerFeePercent}% of the item price (minimum {kwacha(SITE.buyerFeeMin)} per order). It is shown at checkout before you pay. Sellers pay a {SITE.feePercent}% commission only when a sale is completed, and it is taken from the payout. Opening a shop is free, and each order must be at least {kwacha(SITE.minOrder)}.</p>
       <h2 className="zemba-info-h2">What if something goes wrong?</h2>
-      <p className="zemba-info-text">If a seller does not ship, you are refunded automatically. If the item is not as described, open a dispute from your order page and our team will review it and decide fairly. Your money stays protected the whole time.</p>
+      <p className="zemba-info-text">If a seller does not ship, you are refunded in full automatically. If you change your mind before the seller has dispatched your order, you can cancel it and get the item price back less a small cancellation fee. If the item is not as described, open a dispute from your order page and our team will review it and decide fairly. Your money stays protected the whole time. Read the full <a href="/refund-policy">Refund Policy</a>.</p>
       <p><a href="/browse" className="zemba-retail-cta">Start shopping <span>→</span></a></p>
     </InfoPage>
   );

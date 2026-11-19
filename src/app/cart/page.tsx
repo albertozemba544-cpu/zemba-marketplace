@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import SkyBackground from '@/components/SkyBackground';
+import { SITE } from '@/lib/site';
+import { buyerProtectionFee, kwacha, meetsMinimumOrder } from '@/lib/fees';
 
 const TOWNS = ['Lusaka', 'Kitwe', 'Ndola', 'Kabwe', 'Livingstone', 'Chipata', 'Kasama', 'Solwezi', 'Mansa', 'Mongu', 'Choma', 'Kapiri Mposhi', 'Mazabuka', 'Chingola', 'Mufulira', 'Luanshya', 'Kafue', 'Petauke', 'Mpika', 'Senanga'];
 
@@ -50,7 +52,12 @@ export default function Cart() {
     }
   }
 
-  const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  // each product in the cart becomes its own order, so the minimum and the buyer protection fee apply to each one
+  const lines = items.map((i) => ({ item: i, total: Math.round(i.price * i.quantity * 100) / 100 }));
+  const itemsTotal = lines.reduce((sum, l) => sum + l.total, 0);
+  const protectionTotal = lines.reduce((sum, l) => sum + buyerProtectionFee(l.total), 0);
+  const total = Math.round((itemsTotal + protectionTotal) * 100) / 100;
+  const belowMinimum = lines.filter((l) => !meetsMinimumOrder(l.total));
 
   return (
     <>
@@ -77,8 +84,16 @@ export default function Cart() {
             ))}
             {items.length > 0 && (
               <form onSubmit={checkout}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', margin: '1rem 0', fontWeight: 700 }}>
-                  <span>Total</span><span>K{total.toFixed(2)}</span>
+                <div style={{ margin: '1rem 0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Items</span><span>K{itemsTotal.toFixed(2)}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Buyer protection fee</span><span>K{protectionTotal.toFixed(2)}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginTop: '0.4rem', paddingTop: '0.4rem', borderTop: '1px solid #e4ece7' }}><span>Total to pay</span><span>K{total.toFixed(2)}</span></div>
+                  <p className="zemba-muted" style={{ marginBottom: 0 }}>The buyer protection fee is {SITE.buyerFeePercent}% of the item price (minimum {kwacha(SITE.buyerFeeMin)} per order). It covers escrow protection, dispute help and refunds. Each item is a separate order of at least {kwacha(SITE.minOrder)}.</p>
+                  {belowMinimum.length > 0 && (
+                    <div className="zemba-form-error" style={{ marginTop: '0.8rem' }}>
+                      The minimum order is {kwacha(SITE.minOrder)} per item. Please increase the quantity of: {belowMinimum.map((l) => l.item.title).join(', ')}.
+                    </div>
+                  )}
                 </div>
                 <h3 style={{ margin: '1.4rem 0 0.3rem' }}>Where should it be sent?</h3>
                 <p className="zemba-muted" style={{ marginTop: 0 }}>The seller sends your item by bus or courier to this town. The bus company or courier will call this number when it arrives.</p>
@@ -96,7 +111,7 @@ export default function Cart() {
                   <input className="zemba-input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} placeholder="e.g. Mazhandu depot at the main bus station" />
                 </label>
                 {error && <div className="zemba-form-error">{error}</div>}
-                <button className="zemba-btn zemba-btn-primary" style={{ width: '100%', marginTop: '0.4rem' }} disabled={loading}>
+                <button className="zemba-btn zemba-btn-primary" style={{ width: '100%', marginTop: '0.4rem' }} disabled={loading || belowMinimum.length > 0}>
                   {loading ? 'Creating escrow order…' : 'Proceed to checkout'}
                 </button>
               </form>

@@ -5,7 +5,7 @@ import { PoolClient } from 'pg';
 import { logEvent, queryOne, withTransaction } from './db';
 import { notifyUser } from './notify';
 import { siteUrl } from './site';
-import { cancellationRefund, fullRefund, totalToPay } from './fees';
+import { cancellationRefund, fullRefund, sellerFailureCharge, totalToPay } from './fees';
 
 interface NotifyOrder {
   amount: number; // item price
@@ -14,6 +14,8 @@ interface NotifyOrder {
   total_amount: number; // what the buyer paid (item price + buyer protection fee)
   refund_amount: number; // what the buyer gets back
   cancelled: boolean; // true when the buyer cancelled before dispatch
+  seller_charge: number; // refund charge the seller owes when the order was refunded because of them
+  deduction: number; // refund charges taken off this order's payout
 }
 interface Template {
   subject: string;
@@ -65,7 +67,7 @@ const TEMPLATES: Record<string, Template> = {
   },
   REFUND_SELLER: {
     subject: 'An order was refunded to the buyer',
-    text: (o) => `Zemba: Order #${o.reference} was refunded to the buyer, so no payout is due for it.`,
+    text: (o) => `Zemba: Order #${o.reference} was refunded to the buyer, so no payout is due for it. A refund charge of ${money(o.seller_charge)} will be deducted from your next payout, as set out in the Terms.`,
   },
   RELEASE_SELLER: {
     subject: 'Payment released to you',
@@ -77,7 +79,12 @@ const TEMPLATES: Record<string, Template> = {
   },
   PAYOUT_SENT: {
     subject: 'Your payout was sent',
-    text: (o, extra) => `Zemba: We paid ${money(o.net_amount)} for order #${o.reference} to your mobile money.${extra ? ` Ref: ${extra}` : ''}`,
+    text: (o, extra) =>
+      o.deduction >= o.net_amount
+        ? `Zemba: The ${money(o.net_amount)} payout for order #${o.reference} was used to cover ${money(o.deduction)} of refund charges from earlier orders, so nothing was sent this time.`
+        : o.deduction > 0
+          ? `Zemba: We paid ${money(o.net_amount - o.deduction)} for order #${o.reference} to your mobile money (${money(o.net_amount)} less ${money(o.deduction)} of refund charges from earlier orders).${extra ? ` Ref: ${extra}` : ''}`
+          : `Zemba: We paid ${money(o.net_amount)} for order #${o.reference} to your mobile money.${extra ? ` Ref: ${extra}` : ''}`,
   },
   REFUND_SENT: {
     subject: 'Your refund was sent',
@@ -100,9 +107,10 @@ export async function createNotification(
 ) {
   const template = TEMPLATES[type];
   if (!template) return null;
-  const row = await queryOne<{ amount: number; net_amount: number; reference: string; cancelled: boolean }>(
+  const row = await queryOne<{ amount: number; net_amount: number; reference: string; cancelled: boolean; deduction: number }>(
     `SELECT amount, net_amount, order_reference AS reference,
-            EXISTS (SELECT 1 FROM transaction_events e WHERE e.order_id = orders.id AND e.event_type = 'BUYER_CANCELLED') AS cancelled
+            EXISTS (SELECT 1 FROM transaction_events e WHERE e.order_id = orders.id AND e.event_type = 'BUYER_CANCELLED') AS cancelled,
+            COALESCE((SELECT SUM((e.payload->>'amount')::numeric) FROM transaction_events e WHERE e.order_id = orders.id AND e.event_type = 'SELLER_CHARGE_DEDUCTED'), 0) AS deduction
      FROM orders WHERE id = $1`,
     [orderId]
   );
@@ -111,6 +119,9 @@ export async function createNotification(
   const order: NotifyOrder = {
     ...row,
     amount: itemPrice,
+    net_amount: Number(row.net_amount),
+    deduction: Number(row.deduction),
+    seller_charge: sellerFailureCharge(itemPrice),
     total_amount: totalToPay(itemPrice),
     refund_amount: row.cancelled ? cancellationRefund(itemPrice) : fullRefund(itemPrice),
   };

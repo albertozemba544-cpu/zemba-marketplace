@@ -36,6 +36,11 @@ export function fullRefund(amount: number): number {
   return totalToPay(amount);
 }
 
+/** Charge to a seller when an order is refunded because of them (not shipped, not as described, dispute lost). */
+export function sellerFailureCharge(amount: number): number {
+  return round2(Math.min(amount, Math.max((amount * SITE.sellerChargePercent) / 100, SITE.sellerChargeMin)));
+}
+
 export function meetsMinimumOrder(amount: number): boolean {
   return amount >= SITE.minOrder;
 }

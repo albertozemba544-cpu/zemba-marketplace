@@ -20,7 +20,7 @@ export default function AdminPayouts() {
     load();
   }, []);
 
-  async function markPaid(order_id: string, kind: 'payout' | 'refund') {
+  async function markPaid(order_id: string, kind: 'payout' | 'refund' | 'waive') {
     setBusy(order_id); setError('');
     const response = await fetch('/api/admin/payouts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order_id, kind, reference: refs[order_id] || '' }) });
     setBusy('');
@@ -30,7 +30,7 @@ export default function AdminPayouts() {
   }
 
   const money = (v: number) => `K${Number(v || 0).toFixed(2)}`;
-  const totalPayouts = (data?.payouts || []).reduce((sum: number, o: any) => sum + Number(o.net_amount), 0);
+  const totalPayouts = (data?.payouts || []).reduce((sum: number, o: any) => sum + Number(o.pay_amount ?? o.net_amount), 0);
   const totalRefunds = (data?.refunds || []).reduce((sum: number, o: any) => sum + Number(o.refund_amount ?? o.amount), 0);
 
   return (
@@ -59,9 +59,13 @@ export default function AdminPayouts() {
                       <td>#{o.order_reference}<br /><small className="zemba-muted">{o.title}</small></td>
                       <td>{o.seller_name}</td>
                       <td>{o.momo_provider} {o.momo_number}</td>
-                      <td><strong>{money(o.net_amount)}</strong><br /><small className="zemba-muted">sale {money(o.amount)}, fee {money(o.platform_fee)}</small></td>
-                      <td><input className="zemba-input" style={{ margin: 0, minWidth: 130 }} placeholder="MoMo ref" value={refs[o.id] || ''} onChange={(e) => setRefs({ ...refs, [o.id]: e.target.value })} /></td>
-                      <td><button className="zemba-btn zemba-btn-primary" disabled={busy === o.id} onClick={() => markPaid(o.id, 'payout')}>Mark as sent</button></td>
+                      <td>
+                        <strong>{money(o.pay_amount ?? o.net_amount)}</strong>
+                        <br /><small className="zemba-muted">sale {money(o.amount)}, fee {money(o.platform_fee)}</small>
+                        {Number(o.deduction) > 0 && <><br /><small style={{ color: '#a35b00' }}>{money(o.deduction)} taken off for refund charges</small></>}
+                      </td>
+                      <td>{Number(o.pay_amount) === 0 ? <small className="zemba-muted">Nothing to send. Covered by refund charges.</small> : <input className="zemba-input" style={{ margin: 0, minWidth: 130 }} placeholder="MoMo ref" value={refs[o.id] || ''} onChange={(e) => setRefs({ ...refs, [o.id]: e.target.value })} />}</td>
+                      <td><button className="zemba-btn zemba-btn-primary" disabled={busy === o.id} onClick={() => markPaid(o.id, 'payout')}>{Number(o.pay_amount) === 0 ? 'Confirm' : 'Mark as sent'}</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -88,6 +92,31 @@ export default function AdminPayouts() {
               </table>
             </section>
 
+            {(data.sellerCharges || []).length > 0 && (
+              <section className="zemba-card" style={{ padding: '1.2rem', marginTop: '1.2rem', overflowX: 'auto' }}>
+                <h3 style={{ margin: '0 0 0.4rem' }}>Refund charges owed by sellers</h3>
+                <p className="zemba-muted" style={{ marginTop: 0 }}>When an order is refunded because of the seller, a refund charge is taken off their next payouts automatically. If a charge is not fair (for example the seller was not at fault), waive it here. The list shows every charge, including ones already taken off earlier payouts. The amount the seller still owes is the figure in bold.</p>
+                {data.sellerCharges.map((seller: any) => (
+                  <div key={seller.seller_id} style={{ marginBottom: '1rem' }}>
+                    <strong>{seller.seller_name}</strong> still owes <strong>{money(seller.owed)}</strong>
+                    <table className="zemba-table" style={{ marginTop: '0.4rem' }}>
+                      <thead><tr><th>Refunded order</th><th>Item price</th><th>Charge</th><th></th></tr></thead>
+                      <tbody>
+                        {seller.orders.map((c: any) => (
+                          <tr key={c.id}>
+                            <td>#{c.order_reference}<br /><small className="zemba-muted">{new Date(c.updated_at).toLocaleDateString()}</small></td>
+                            <td>{money(c.amount)}</td>
+                            <td>{money(c.charge)}</td>
+                            <td><button className="zemba-btn zemba-btn-secondary" disabled={busy === c.id} onClick={() => markPaid(c.id, 'waive')}>Waive</button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </section>
+            )}
+
             <section className="zemba-card" style={{ padding: '1.2rem', marginTop: '1.2rem', overflowX: 'auto' }}>
               <h3 style={{ margin: '0 0 0.8rem' }}>Recently sent</h3>
               <table className="zemba-table">
@@ -100,7 +129,7 @@ export default function AdminPayouts() {
                       <tr key={o.order_reference + (refund ? 'r' : 'p')}>
                         <td>#{o.order_reference}</td>
                         <td>{refund ? 'Refund' : 'Seller payout'}</td>
-                        <td>{money(refund ? (o.refund_amount ?? o.amount) : o.net_amount)}</td>
+                        <td>{money(refund ? (o.refund_amount ?? o.amount) : Number(o.net_amount) - Number(o.deduction || 0))}{!refund && Number(o.deduction) > 0 && <><br /><small className="zemba-muted">after {money(o.deduction)} refund charges</small></>}</td>
                         <td>{refund ? o.refund_reference : o.payout_reference}</td>
                         <td>{new Date(refund ? o.refund_paid_at : o.payout_paid_at).toLocaleDateString()}</td>
                       </tr>

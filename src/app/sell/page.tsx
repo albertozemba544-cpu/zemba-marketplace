@@ -37,7 +37,7 @@ export default function SellPage() {
         <h2>The rules in short</h2>
         <ul>
           <li>Sell only real items you have, described honestly, with your own photos.</li>
-          <li>Send within {SITE.dispatchDays} days of payment. If you do not, the buyer is refunded in full, and the refund costs may be deducted from your other payouts.</li>
+          <li>Send within {SITE.dispatchDays} days of payment. If you do not, the buyer is refunded in full and a refund charge of {SITE.sellerChargePercent}% of the item price (minimum {kwacha(SITE.sellerChargeMin)}) is deducted from your next payouts.</li>
           <li>Never ask a buyer to pay outside Zemba, and never ask for their delivery code.</li>
         </ul>
         <p>Read the full <a href="/terms">Terms of Use</a> and <a href="/refund-policy">Refund Policy</a> before you start.</p>

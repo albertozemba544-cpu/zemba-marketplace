@@ -68,10 +68,13 @@ export default function RefundPolicyPage() {
           <li>Payments made outside Zemba.</li>
         </ul>
 
-        <h2>9. Honest claims only</h2>
+        <h2>9. Seller responsibility</h2>
+        <p>When a refund is due because of the seller, the seller pays a refund charge of {SITE.sellerChargePercent}% of the item price (minimum {kwacha(SITE.sellerChargeMin)}), deducted from their next payouts. You as the buyer never pay this charge.</p>
+
+        <h2>10. Honest claims only</h2>
         <p>Disputes must be truthful. If we find that a buyer or seller has made a false claim, forged proof, or tried to cheat the system, we may reject the claim and suspend the account, as set out in our <a href="/terms">Terms of Use</a>.</p>
 
-        <h2>10. Contact us</h2>
+        <h2>11. Contact us</h2>
         <p>Need help with an order or a refund? Use our <a href="/contact">contact page</a>{SITE.email ? <> or email <a href={`mailto:${SITE.email}`}>{SITE.email}</a></> : null}. Please include your order number.</p>
       </div>
     </InfoPage>

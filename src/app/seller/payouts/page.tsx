@@ -32,6 +32,12 @@ export default function SellerPayouts() {
               <div className="zemba-card zemba-stat"><span className="zemba-muted">Payout being sent</span><strong>{money(data.summary.awaiting)}</strong><small className="zemba-muted">Delivery confirmed</small></div>
               <div className="zemba-card zemba-stat"><span className="zemba-muted">Paid to you</span><strong>{money(data.summary.paid)}</strong><small className="zemba-muted">Total received</small></div>
             </div>
+            {Number(data.charges_owed) > 0 && (
+              <div className="zemba-card" style={{ padding: '1rem 1.2rem', marginTop: '1.2rem' }}>
+                <strong>Refund charges to be deducted: {money(data.charges_owed)}</strong>
+                <p className="zemba-muted" style={{ margin: '0.3rem 0 0' }}>When an order is refunded because the seller did not send it, or sent something that was not as described, a small charge covers the cost of that refund. It is taken off your next payouts automatically. See the Terms of Use for details.</p>
+              </div>
+            )}
             <section className="zemba-card" style={{ padding: '1.2rem', marginTop: '1.2rem', overflowX: 'auto' }}>
               <h3 style={{ margin: '0 0 0.8rem' }}>Order history</h3>
               <table className="zemba-table">
@@ -46,7 +52,7 @@ export default function SellerPayouts() {
                         <td>{o.title || '-'}</td>
                         <td>{money(o.amount)}</td>
                         <td>{money(o.platform_fee)}</td>
-                        <td><strong>{money(o.net_amount)}</strong></td>
+                        <td><strong>{money(Number(o.net_amount) - Number(o.deduction || 0))}</strong>{Number(o.deduction) > 0 && <><br /><small className="zemba-muted">after {money(o.deduction)} refund charges</small></>}</td>
                         <td><span className={`zemba-pill ${info.tone}`}>{info.label}</span><br /><small className="zemba-muted">{statusInfo(o.status).label}</small></td>
                         <td>{o.payout_reference || '-'}</td>
                       </tr>

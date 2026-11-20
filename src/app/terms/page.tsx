@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import InfoPage from '@/components/InfoPage';
 import { SITE } from '@/lib/site';
-import { buyerProtectionFee, cancellationFee, kwacha } from '@/lib/fees';
+import { buyerProtectionFee, cancellationFee, kwacha, sellerFailureCharge } from '@/lib/fees';
 
 export const metadata: Metadata = { title: 'Terms of Use', description: `The rules for buying and selling on ${SITE.name}.` };
 
@@ -58,7 +58,7 @@ export default function TermsPage() {
           <li><strong>The seller does not send the item in time.</strong> The buyer is refunded automatically, in full, including the buyer protection fee.</li>
           <li><strong>The buyer cancels before dispatch.</strong> A buyer can cancel a paid order from the order page until the seller has dispatched it. The buyer is then refunded the item price less a cancellation fee of {SITE.cancelFeePercent}% of the item price (minimum {kwacha(SITE.cancelFeeMin)}). The buyer protection fee is not refunded. For example, on a K200 item the buyer pays {kwacha(200 + buyerProtectionFee(200))}, and if the buyer cancels they get back {kwacha(200 - cancellationFee(200))}. Once the seller has dispatched the order it can no longer be cancelled.</li>
           <li><strong>The item does not arrive or is not as described.</strong> If the seller dispatched the order but the item does not arrive, or it is not as described, the buyer can open a dispute. A dispute decided in the buyer&apos;s favour is refunded in full, including the buyer protection fee.</li>
-          <li><strong>Seller responsibility.</strong> When a refund is due because a seller did not send an order, sent the wrong or a fake item, or sent an item that is not as described, Zemba may deduct the cost of that refund from the seller&apos;s other payouts, and may warn, suspend or remove the seller.</li>
+          <li><strong>Seller responsibility.</strong> When an order is refunded because the seller did not send it, sent the wrong or a fake item, sent an item that is not as described, or lost a dispute, the seller pays a refund charge of {SITE.sellerChargePercent}% of the item price (minimum {kwacha(SITE.sellerChargeMin)}) to cover the cost of the refund. For example, on a K200 item the charge is {kwacha(sellerFailureCharge(200))}. Zemba deducts the charge automatically from the seller&apos;s next payouts. Zemba may also warn, suspend or remove sellers who are refunded often. If a charge was not fair, a seller can ask us to review it through the contact page.</li>
           <li>While an order is paid and not yet confirmed, the buyer can open a dispute from the order page. Buyer and seller then talk to each other there and try to agree a solution: a refund, paying the seller, or the buyer sending the item back and then being refunded.</li>
           <li>When both of you accept a solution, it happens automatically. If you cannot agree, either of you can ask the Zemba team to step in. We may also step in after 7 days without agreement. The team then decides either to refund the buyer or to release the money to the seller, and explains the decision. Inside the Zemba website this decision on how the escrowed money is paid out is final, but it does not limit any rights you have under Zambian law.</li>
           <li>In a serious situation, such as suspected fraud, we may put an order on hold or pause payments for a short while. We will tell the people involved.</li>

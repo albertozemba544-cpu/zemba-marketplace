@@ -4,8 +4,8 @@
 export const SITE = {
   name: 'Zemba Marketplace',
   description: 'Escrow-backed marketplace for Zambia — buy, sell, and never get scammed.',
-  phone: '+260 77 190 2162',
-  whatsapp: '260771902162', // digits only, with country code
+  phone: '+260 76 891 4518',
+  whatsapp: '260768914518', // digits only, with country code
   email: 'aztechinnovations@yahoo.com',
   hours: 'Monday to Saturday, 08:00 – 17:00 (CAT)',
   location: 'Zambia',
@@ -24,6 +24,9 @@ export const SITE = {
   cancelFeeMin: 5, // ...with this minimum in kwacha
   minOrder: 30, // smallest item value of one order, in kwacha
   dispatchDays: 3, // days a seller has to dispatch a paid order
+  sellerChargePercent: 5, // charge to a seller when an order is refunded because of them: % of the item price...
+  sellerChargeMin: 5, // ...with this minimum in kwacha. It is deducted automatically from their payouts.
+  sellerChargesFrom: '2026-11-19', // refunds before this date carry no seller charge
 };
 
 /** The public address of the website, e.g. https://zemba-marketplace.vercel.app */

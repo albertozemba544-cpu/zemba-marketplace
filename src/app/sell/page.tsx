@@ -32,6 +32,8 @@ export default function SellPage() {
 
         <h2>What it costs</h2>
         <p>There is no fee to open a shop or to list items. When you make a sale, Zemba keeps a commission of {SITE.feePercent}% of the item price, and you receive the rest. Buyers pay their own buyer protection fee on top of your price, so it is never taken out of your price. Each order must be at least {kwacha(SITE.minOrder)}.</p>
+        <h2>Shipping is paid by the buyer</h2>
+        <p>When you list an item you choose how shipping works. You can offer free shipping (the cost is already in your price), or set a shipping price for each town. You know what the bus or courier charges to each place, so you set the prices and buyers see the price for their town before they pay. The buyer pays the item and the shipping in one payment. You receive the shipping money with your payout, and Zemba takes no commission on it, so you are never out of pocket when you pay the bus or courier.</p>
         <p>For example, if you sell an item for K200, Zemba keeps K{(200 * SITE.feePercent) / 100} and you are paid K{200 - (200 * SITE.feePercent) / 100}. We send your payout as soon as we can after delivery is confirmed, and you can follow it on your Payouts page.</p>
 
         <h2>The rules in short</h2>

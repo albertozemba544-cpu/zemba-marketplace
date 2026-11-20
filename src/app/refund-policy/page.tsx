@@ -21,17 +21,17 @@ export default function RefundPolicyPage() {
         <table className="zemba-table">
           <thead><tr><th>Situation</th><th>What you get back</th></tr></thead>
           <tbody>
-            <tr><td>The seller does not dispatch your order within {SITE.dispatchDays} days of your payment</td><td>Everything you paid, including the buyer protection fee. This happens automatically.</td></tr>
-            <tr><td>The delivery window runs out and there is no proof of dispatch</td><td>Everything you paid, including the buyer protection fee. This happens automatically.</td></tr>
-            <tr><td>The item is not as described, damaged, fake, or does not arrive, and a dispute is decided in your favour</td><td>Everything you paid, including the buyer protection fee.</td></tr>
-            <tr><td>You cancel before the seller has dispatched your order</td><td>The item price less a cancellation fee of {SITE.cancelFeePercent}% (minimum {kwacha(SITE.cancelFeeMin)}). The buyer protection fee is not refunded.</td></tr>
+            <tr><td>The seller does not dispatch your order within {SITE.dispatchDays} days of your payment</td><td>Everything you paid, including the shipping and the buyer protection fee. This happens automatically.</td></tr>
+            <tr><td>The delivery window runs out and there is no proof of dispatch</td><td>Everything you paid, including the shipping and the buyer protection fee. This happens automatically.</td></tr>
+            <tr><td>The item is not as described, damaged, fake, or does not arrive, and a dispute is decided in your favour</td><td>Everything you paid, including the shipping and the buyer protection fee.</td></tr>
+            <tr><td>You cancel before the seller has dispatched your order</td><td>The item price less a cancellation fee of {SITE.cancelFeePercent}% (minimum {kwacha(SITE.cancelFeeMin)}), plus the shipping you paid. The buyer protection fee is not refunded.</td></tr>
             <tr><td>You have already entered your delivery code</td><td>No refund. The money has been released to the seller.</td></tr>
           </tbody>
         </table>
 
         <h2>2. How much you get back</h2>
-        <p>When a refund is due because the seller did not deliver, you get back the full amount you paid for the order: the item price and the buyer protection fee.</p>
-        <p>When you cancel a paid order before dispatch, you get back the item price less the cancellation fee. For example, if you buy a {kwacha(EXAMPLE)} item you pay {kwacha(totalToPay(EXAMPLE))} ({kwacha(EXAMPLE)} plus a {kwacha(buyerProtectionFee(EXAMPLE))} buyer protection fee). If you cancel before dispatch, you get back {kwacha(cancellationRefund(EXAMPLE))}: the {kwacha(EXAMPLE)} item price less a {kwacha(cancellationFee(EXAMPLE))} cancellation fee. The cancellation fee helps cover the payment processing costs of an order that does not go ahead.</p>
+        <p>When a refund is due because the seller did not deliver, you get back the full amount you paid for the order: the item price, the shipping and the buyer protection fee.</p>
+        <p>When you cancel a paid order before dispatch, you get back the item price less the cancellation fee, plus any shipping you paid. For example, if you buy a {kwacha(EXAMPLE)} item you pay {kwacha(totalToPay(EXAMPLE))} ({kwacha(EXAMPLE)} plus a {kwacha(buyerProtectionFee(EXAMPLE))} buyer protection fee). If you cancel before dispatch, you get back {kwacha(cancellationRefund(EXAMPLE))}: the {kwacha(EXAMPLE)} item price less a {kwacha(cancellationFee(EXAMPLE))} cancellation fee. Any shipping you paid is added to that refund, because nothing has been sent. The cancellation fee helps cover the payment processing costs of an order that does not go ahead.</p>
         <p>If your mobile money provider charges you for sending the original payment, that charge belongs to the provider and is not refunded by Zemba.</p>
 
         <h2>3. How to cancel an order</h2>
@@ -59,7 +59,7 @@ export default function RefundPolicyPage() {
         <p>You can open a dispute while the order is paid, dispatched, or waiting for review, and before you confirm delivery. You cannot dispute an order after you have entered the delivery code.</p>
 
         <h2>7. When the seller is paid</h2>
-        <p>The seller is paid when you confirm delivery with your code, or when a dispute is decided in the seller&apos;s favour. Sellers receive the item price less the Zemba commission of {SITE.feePercent}%, sent to their registered mobile money number. We send payouts as soon as we can after that, and you can follow each one on your Payouts page.</p>
+        <p>The seller is paid when you confirm delivery with your code, or when a dispute is decided in the seller&apos;s favour. Sellers receive the item price less the Zemba commission of {SITE.feePercent}%, plus the shipping you paid, sent to their registered mobile money number. We send payouts as soon as we can after that, and you can follow each one on your Payouts page.</p>
 
         <h2>8. What is not covered</h2>
         <ul>

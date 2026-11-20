@@ -28,14 +28,14 @@ export async function GET(req: NextRequest) {
     );
     // Zemba earns: the seller commission and buyer protection fee on completed orders,
     // plus the protection fee and cancellation fee kept on orders a buyer cancelled before dispatch.
-    const buyerFee = 'GREATEST(ROUND(amount * $1::numeric / 100, 2), $2::numeric)';
+    const buyerFee = 'GREATEST(ROUND((amount + shipping_amount) * $1::numeric / 100, 2), $2::numeric)';
     const cancelFee = 'LEAST(amount, GREATEST(ROUND(amount * $3::numeric / 100, 2), $4::numeric))';
     const money = await queryOne<any>(
       `SELECT
          COALESCE(SUM(amount) FILTER (WHERE status = 'COMPLETED'), 0) AS sales_completed,
          COALESCE(SUM(platform_fee + ${buyerFee}) FILTER (WHERE status = 'COMPLETED'), 0)
            + COALESCE(SUM(${buyerFee} + ${cancelFee}) FILTER (WHERE status = 'REFUNDED' AND cancelled), 0) AS fees_earned,
-         COALESCE(SUM(amount + ${buyerFee}) FILTER (WHERE status IN ('FUNDS_SECURED', 'DISPATCHED', 'PENDING_ADMIN_REVIEW', 'DISPUTED')), 0) AS held_in_escrow,
+         COALESCE(SUM(amount + shipping_amount + ${buyerFee}) FILTER (WHERE status IN ('FUNDS_SECURED', 'DISPATCHED', 'PENDING_ADMIN_REVIEW', 'DISPUTED')), 0) AS held_in_escrow,
          COUNT(*) FILTER (WHERE status = 'COMPLETED') AS orders_completed,
          COUNT(*) FILTER (WHERE status IN ('FUNDS_SECURED', 'DISPATCHED', 'PENDING_ADMIN_REVIEW', 'DISPUTED')) AS orders_in_progress
        FROM (

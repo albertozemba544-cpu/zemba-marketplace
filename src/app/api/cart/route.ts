@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { execute, query, queryOne } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { fail, handleError, isUuid } from '@/lib/http';
+import { loadShippingConfigs } from '@/lib/shippingDb';
 
 export async function GET(req: NextRequest) {
   const auth = await requireUser(req, ['customer']);
@@ -16,7 +17,9 @@ export async function GET(req: NextRequest) {
        ORDER BY c.created_at ASC`,
       [auth.user.id]
     );
-    return NextResponse.json({ items });
+    const configs = await loadShippingConfigs(items.map((item: any) => item.id));
+    const withShipping = items.map((item: any) => ({ ...item, shipping: configs.get(item.id) ?? { mode: 'FREE', otherPrice: null, rates: [] } }));
+    return NextResponse.json({ items: withShipping });
   } catch (error) {
     return handleError(error);
   }

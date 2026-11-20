@@ -74,9 +74,10 @@ export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>)
 export const PLATFORM_FEE_RATE = SITE.feePercent / 100;
 
 /** Seller side of an order: the commission Zemba keeps and what the seller is paid. (The buyer protection fee is worked out in lib/fees.ts.) */
-export function computeFees(amount: number) {
+export function computeFees(amount: number, shipping = 0) {
+  // the commission is on the item price only; the shipping the buyer paid goes to the seller in full
   const platform_fee = Math.round(amount * PLATFORM_FEE_RATE * 100) / 100;
-  const net_amount = Math.round((amount - platform_fee) * 100) / 100;
+  const net_amount = Math.round((amount - platform_fee + shipping) * 100) / 100;
   return { platform_fee, net_amount };
 }
 

@@ -30,8 +30,9 @@ export async function POST(req: NextRequest, { params }: { params: { reference: 
     if (blocked) return fail(blocked, 503);
 
     const amount = Number(order.amount);
+    const shipping = Number(order.shipping_amount || 0);
     const fee = cancellationFee(amount);
-    const refund = cancellationRefund(amount);
+    const refund = cancellationRefund(amount, shipping);
 
     const cancelled = await withTransaction(async (client) => {
       const updated = await client.query(
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: { reference: 
       await logEvent(
         order.id,
         'BUYER_CANCELLED',
-        { item_price: amount, cancellation_fee: fee, buyer_protection_fee: buyerProtectionFee(amount), refund_amount: refund },
+        { item_price: amount, shipping_refunded: shipping, cancellation_fee: fee, buyer_protection_fee: buyerProtectionFee(amount, shipping), refund_amount: refund },
         client
       );
       return true;

@@ -58,7 +58,7 @@ export default function OrderStatus() {
             <p style={{ color: '#fff', fontSize: '2rem', margin: '0.3rem 0' }}>K{Number((isBuyer ? order.total_amount : order.amount) ?? order.amount).toFixed(2)}</p>
             {isBuyer && order.buyer_fee !== undefined && (
               <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, margin: '0 0 0.6rem' }}>
-                Item K{Number(order.amount).toFixed(2)} + buyer protection fee K{Number(order.buyer_fee).toFixed(2)}
+                Item K{Number(order.amount).toFixed(2)}{Number(order.shipping_amount) > 0 ? ` + shipping K${Number(order.shipping_amount).toFixed(2)}` : ''} + buyer protection fee K{Number(order.buyer_fee).toFixed(2)}
               </p>
             )}
             <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 999, background: 'rgba(255,211,122,0.25)', color: '#FFD37A', fontSize: 13 }}>
@@ -84,7 +84,7 @@ export default function OrderStatus() {
             {isBuyer && order.status === 'REFUNDED' && order.cancel_refund !== undefined && (
               <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: '0.8rem' }}>
                 {order.cancelled
-                  ? `You cancelled this order before dispatch. Your refund is ${kwacha(order.cancel_refund)} (the item price less the cancellation fee of ${kwacha(order.cancel_fee)}).`
+                  ? `You cancelled this order before dispatch. Your refund is ${kwacha(order.cancel_refund)} (the item price less the cancellation fee of ${kwacha(order.cancel_fee)}, plus the shipping you paid).`
                   : `Your refund is the full amount you paid, ${kwacha(order.total_amount)}, including the buyer protection fee.`}
               </p>
             )}
@@ -190,7 +190,7 @@ function CancelAction({ reference, fee, refund, buyerFee, onDone }: { reference:
         <div style={{ padding: '0.9rem', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.06)' }}>
           <p style={{ color: '#fff', margin: '0 0 0.5rem', fontWeight: 600 }}>Cancel before the seller sends it?</p>
           <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.88rem', margin: '0 0 0.7rem' }}>
-            You will be refunded <strong>{kwacha(refund)}</strong>: the item price less a cancellation fee of {kwacha(fee)} ({SITE.cancelFeePercent}% of the item price, minimum {kwacha(SITE.cancelFeeMin)}). The buyer protection fee of {kwacha(buyerFee)} is not refunded. After the seller sends the order it can no longer be cancelled.
+            You will be refunded <strong>{kwacha(refund)}</strong>: the item price less a cancellation fee of {kwacha(fee)} ({SITE.cancelFeePercent}% of the item price, minimum {kwacha(SITE.cancelFeeMin)}), plus any shipping you paid. The buyer protection fee of {kwacha(buyerFee)} is not refunded. After the seller sends the order it can no longer be cancelled.
           </p>
           <button type="button" className="zemba-btn zemba-btn-primary" style={{ width: '100%', marginBottom: '0.5rem' }} onClick={cancel} disabled={busy}>{busy ? 'Cancelling…' : 'Yes, cancel my order'}</button>
           <button type="button" className="zemba-btn zemba-btn-secondary" style={{ width: '100%' }} onClick={() => setOpen(false)} disabled={busy}>Keep my order</button>

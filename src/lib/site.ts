@@ -14,11 +14,11 @@ export const SITE = {
   legalName: 'AZTECH Innovations',
   registrationNumber: '320261082033', // PACRA registration number
   address: '', // registered office address; leave empty to hide it
-  legalUpdated: '19 November 2026', // shown on the legal pages
+  legalUpdated: '20 November 2026', // shown on the legal pages
 
   // ---- Fees and order rules ----
-  feePercent: 6, // seller commission: % of the item price, taken from the seller's payout
-  buyerFeePercent: 2, // buyer protection fee: % of the item price...
+  feePercent: 8, // seller commission: % of the item price (shipping is not charged commission), taken from the seller's payout
+  buyerFeePercent: 4, // buyer protection fee: % of the item price plus shipping...
   buyerFeeMin: 3, // ...with this minimum in kwacha per order
   cancelFeePercent: 5, // fee when a buyer cancels a paid order before dispatch: % of the item price...
   cancelFeeMin: 5, // ...with this minimum in kwacha

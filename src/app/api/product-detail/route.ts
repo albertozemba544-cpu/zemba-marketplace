@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db';
 import { getSellerTrust } from '@/lib/trust';
 import { fail, handleError, isUuid } from '@/lib/http';
+import { loadShippingConfigs } from '@/lib/shippingDb';
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,7 +21,8 @@ export async function GET(req: NextRequest) {
     let images = await query<{ id: string; url: string }>('SELECT id, url FROM product_images WHERE product_id = $1 ORDER BY position, created_at', [id]);
     if (images.length === 0 && product.image_url) images = [{ id: 'main', url: product.image_url }];
     const seller_trust = await getSellerTrust(product.seller_id).catch(() => null);
-    return NextResponse.json({ product: { ...product, images, seller_trust } });
+    const shipping = (await loadShippingConfigs([id as string])).get(id as string) ?? { mode: 'FREE', otherPrice: null, rates: [] };
+    return NextResponse.json({ product: { ...product, images, seller_trust, shipping } });
   } catch (error) {
     return handleError(error);
   }

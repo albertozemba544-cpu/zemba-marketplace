@@ -445,3 +445,24 @@ CREATE TABLE IF NOT EXISTS admin_messages (
 ALTER TABLE broadcasts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE broadcast_recipients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_messages ENABLE ROW LEVEL SECURITY;
+
+-- ================================================================
+-- from migration-7.sql
+-- ================================================================
+-- (shipping fees chosen by the seller)
+ALTER TABLE products ADD COLUMN IF NOT EXISTS shipping_mode VARCHAR(10) NOT NULL DEFAULT 'FREE';
+-- price for towns that are not in the seller's list. NULL = the seller does not deliver to other towns.
+ALTER TABLE products ADD COLUMN IF NOT EXISTS shipping_other_price DECIMAL(12, 2);
+
+CREATE TABLE IF NOT EXISTS product_shipping_rates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  town VARCHAR(80) NOT NULL,
+  price DECIMAL(12, 2) NOT NULL DEFAULT 0,       -- 0 = free shipping to this town
+  UNIQUE (product_id, town)
+);
+CREATE INDEX IF NOT EXISTS idx_shipping_rates_product ON product_shipping_rates(product_id);
+ALTER TABLE product_shipping_rates ENABLE ROW LEVEL SECURITY;
+
+-- The shipping the buyer paid on each order (it is paid out to the seller together with the item)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_amount DECIMAL(12, 2) NOT NULL DEFAULT 0;

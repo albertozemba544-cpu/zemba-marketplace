@@ -107,8 +107,8 @@ export async function createNotification(
 ) {
   const template = TEMPLATES[type];
   if (!template) return null;
-  const row = await queryOne<{ amount: number; net_amount: number; reference: string; cancelled: boolean; deduction: number }>(
-    `SELECT amount, net_amount, order_reference AS reference,
+  const row = await queryOne<{ amount: number; shipping_amount: number; net_amount: number; reference: string; cancelled: boolean; deduction: number }>(
+    `SELECT amount, shipping_amount, net_amount, order_reference AS reference,
             EXISTS (SELECT 1 FROM transaction_events e WHERE e.order_id = orders.id AND e.event_type = 'BUYER_CANCELLED') AS cancelled,
             COALESCE((SELECT SUM((e.payload->>'amount')::numeric) FROM transaction_events e WHERE e.order_id = orders.id AND e.event_type = 'SELLER_CHARGE_DEDUCTED'), 0) AS deduction
      FROM orders WHERE id = $1`,
@@ -116,14 +116,15 @@ export async function createNotification(
   );
   if (!row) return null;
   const itemPrice = Number(row.amount);
+  const shipping = Number(row.shipping_amount || 0);
   const order: NotifyOrder = {
     ...row,
     amount: itemPrice,
     net_amount: Number(row.net_amount),
     deduction: Number(row.deduction),
     seller_charge: sellerFailureCharge(itemPrice),
-    total_amount: totalToPay(itemPrice),
-    refund_amount: row.cancelled ? cancellationRefund(itemPrice) : fullRefund(itemPrice),
+    total_amount: totalToPay(itemPrice, shipping),
+    refund_amount: row.cancelled ? cancellationRefund(itemPrice, shipping) : fullRefund(itemPrice, shipping),
   };
   const message = template.text(order, extra);
   const sql = `INSERT INTO order_notifications (order_id, recipient_id, notification_type, message)

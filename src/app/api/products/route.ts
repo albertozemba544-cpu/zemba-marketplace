@@ -6,6 +6,8 @@ import { optionalUser, requireUser } from '@/lib/auth';
 import { checkListing } from '@/lib/moderation';
 import { saveUploadedImage } from '@/lib/storage';
 import { fail, handleError, isUuid } from '@/lib/http';
+import { parseShippingInput } from '@/lib/shipping';
+import { saveShipping } from '@/lib/shippingDb';
 
 const MAX_IMAGES = 5;
 
@@ -51,6 +53,7 @@ export async function POST(req: NextRequest) {
     let category = '';
     let stock = 1;
     let imageFiles: File[] = [];
+    let shippingInput: { mode?: unknown; other?: unknown; rates?: unknown } = {};
 
     if (contentType.includes('multipart/form-data')) {
       const form = await req.formData();
@@ -60,6 +63,7 @@ export async function POST(req: NextRequest) {
       category = String(form.get('category') || '').trim();
       stock = Number(form.get('stock') || 1);
       imageFiles = [...form.getAll('images'), form.get('image')].filter((f): f is File => f instanceof File && f.size > 0);
+      shippingInput = { mode: form.get('shipping_mode'), other: form.get('shipping_other'), rates: form.get('shipping_rates') };
     } else {
       const body = await req.json();
       title = String(body.title || '').trim();
@@ -67,12 +71,15 @@ export async function POST(req: NextRequest) {
       price = Number(body.price);
       category = String(body.category || '').trim();
       stock = Number(body.stock ?? 1);
+      shippingInput = { mode: body.shipping_mode, other: body.shipping_other, rates: body.shipping_rates };
     }
 
     if (!title || title.length > 255) return fail('A title (up to 255 characters) is required');
     if (!Number.isFinite(price) || price <= 0 || price > 10_000_000) return fail('Enter a valid price');
     if (!Number.isInteger(stock) || stock < 0 || stock > 100_000) return fail('Enter a valid stock quantity');
     if (imageFiles.length > MAX_IMAGES) return fail(`You can add up to ${MAX_IMAGES} photos`);
+    const shipping = parseShippingInput(shippingInput);
+    if ('error' in shipping) return fail(shipping.error);
 
     const urls: string[] = [];
     for (const file of imageFiles) {
@@ -98,6 +105,7 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < urls.length; i++) {
         await client.query('INSERT INTO product_images (product_id, url, position) VALUES ($1, $2, $3)', [productId, urls[i], i]);
       }
+      await saveShipping(client, productId, shipping.mode, shipping.otherPrice, shipping.rates);
       return productId;
     });
     return NextResponse.json({ id, flagged, reasons }, { status: 201 });

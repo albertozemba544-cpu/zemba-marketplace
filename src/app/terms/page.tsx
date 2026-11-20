@@ -30,7 +30,7 @@ export default function TermsPage() {
 
         <h2>3. How an order works</h2>
         <ol>
-          <li>The buyer adds an item to the cart and pays through the website. The buyer pays the item price plus the buyer protection fee. The money goes into escrow and is not given to the seller yet.</li>
+          <li>The buyer adds an item to the cart and pays through the website. The buyer pays the item price, the shipping price set by the seller for the buyer&apos;s town, and the buyer protection fee, all in one payment. The money goes into escrow and is not given to the seller yet.</li>
           <li>The seller must send the item within 3 days of the payment being confirmed and upload proof of dispatch, such as a photo of the waybill or receipt.</li>
           <li>The buyer receives the item, checks it, and enters the 6-digit delivery code shown on the order page.</li>
           <li>When the code is entered, the money is released to the seller, less the Zemba commission.</li>
@@ -40,8 +40,9 @@ export default function TermsPage() {
         <h2>4. Prices, payments and fees</h2>
         <ul>
           <li>Prices are in Zambian kwacha (ZMW). The price on the listing is the price the buyer pays through Zemba. Any delivery arrangement or charge must be clear in the listing or agreed in writing between buyer and seller.</li>
-          <li><strong>Seller commission.</strong> Zemba charges the seller a commission of {SITE.feePercent}% of the item price. It is taken out of the amount paid to the seller.</li>
-          <li><strong>Buyer protection fee.</strong> The buyer pays a protection fee of {SITE.buyerFeePercent}% of the item price, with a minimum of {kwacha(SITE.buyerFeeMin)} per order. It is added to the item price and shown at checkout before the buyer pays. It pays for escrow protection, dispute handling and refunds.</li>
+          <li><strong>Seller commission.</strong> Zemba charges the seller a commission of {SITE.feePercent}% of the item price. It is taken out of the amount paid to the seller. No commission is charged on shipping.</li>
+          <li><strong>Shipping.</strong> The seller sets the shipping price for each town when listing an item, or offers free shipping. The buyer sees the shipping price for their town before paying and pays it together with the item. The shipping money is held in escrow with the item and is paid to the seller with the payout. The seller is responsible for paying the bus company or courier.</li>
+          <li><strong>Buyer protection fee.</strong> The buyer pays a protection fee of {SITE.buyerFeePercent}% of the item price plus shipping, with a minimum of {kwacha(SITE.buyerFeeMin)} per order. It is added at checkout and shown before the buyer pays. It pays for escrow protection, dispute handling and refunds.</li>
           <li><strong>Minimum order.</strong> The item value of each order must be at least {kwacha(SITE.minOrder)}.</li>
           <li><strong>Cancellation fee.</strong> A buyer who cancels a paid order before dispatch pays a cancellation fee, as set out in section 6.</li>
           <li>There is no fee to open an account or to list items.</li>
@@ -55,9 +56,9 @@ export default function TermsPage() {
 
         <h2>6. If something goes wrong</h2>
         <ul>
-          <li><strong>The seller does not send the item in time.</strong> The buyer is refunded automatically, in full, including the buyer protection fee.</li>
-          <li><strong>The buyer cancels before dispatch.</strong> A buyer can cancel a paid order from the order page until the seller has dispatched it. The buyer is then refunded the item price less a cancellation fee of {SITE.cancelFeePercent}% of the item price (minimum {kwacha(SITE.cancelFeeMin)}). The buyer protection fee is not refunded. For example, on a K200 item the buyer pays {kwacha(200 + buyerProtectionFee(200))}, and if the buyer cancels they get back {kwacha(200 - cancellationFee(200))}. Once the seller has dispatched the order it can no longer be cancelled.</li>
-          <li><strong>The item does not arrive or is not as described.</strong> If the seller dispatched the order but the item does not arrive, or it is not as described, the buyer can open a dispute. A dispute decided in the buyer&apos;s favour is refunded in full, including the buyer protection fee.</li>
+          <li><strong>The seller does not send the item in time.</strong> The buyer is refunded automatically, in full, including the shipping and the buyer protection fee.</li>
+          <li><strong>The buyer cancels before dispatch.</strong> A buyer can cancel a paid order from the order page until the seller has dispatched it. The buyer is then refunded the item price less a cancellation fee of {SITE.cancelFeePercent}% of the item price (minimum {kwacha(SITE.cancelFeeMin)}), plus any shipping paid. The buyer protection fee is not refunded. For example, on a K200 item the buyer pays {kwacha(200 + buyerProtectionFee(200))}, and if the buyer cancels they get back {kwacha(200 - cancellationFee(200))}. Once the seller has dispatched the order it can no longer be cancelled.</li>
+          <li><strong>The item does not arrive or is not as described.</strong> If the seller dispatched the order but the item does not arrive, or it is not as described, the buyer can open a dispute. A dispute decided in the buyer&apos;s favour is refunded in full, including the shipping and the buyer protection fee.</li>
           <li><strong>Seller responsibility.</strong> When an order is refunded because the seller did not send it, sent the wrong or a fake item, sent an item that is not as described, or lost a dispute, the seller pays a refund charge of {SITE.sellerChargePercent}% of the item price (minimum {kwacha(SITE.sellerChargeMin)}) to cover the cost of the refund. For example, on a K200 item the charge is {kwacha(sellerFailureCharge(200))}. Zemba deducts the charge automatically from the seller&apos;s next payouts. Zemba may also warn, suspend or remove sellers who are refunded often. If a charge was not fair, a seller can ask us to review it through the contact page.</li>
           <li>While an order is paid and not yet confirmed, the buyer can open a dispute from the order page. Buyer and seller then talk to each other there and try to agree a solution: a refund, paying the seller, or the buyer sending the item back and then being refunded.</li>
           <li>When both of you accept a solution, it happens automatically. If you cannot agree, either of you can ask the Zemba team to step in. We may also step in after 7 days without agreement. The team then decides either to refund the buyer or to release the money to the seller, and explains the decision. Inside the Zemba website this decision on how the escrowed money is paid out is final, but it does not limit any rights you have under Zambian law.</li>
@@ -76,7 +77,7 @@ export default function TermsPage() {
           <li>Sellers can ask for a <strong>Verified seller</strong> badge by showing their ID to a member of our team on a short video call. The badge means we checked that ID when we looked at it. We do not keep photos or recordings of it. It is not a promise about the seller&apos;s honesty or the quality of their items, and we may remove it at any time, for example after complaints or if we find the details were false.</li>
           <li>Buyers can see your track record: how long you have been on Zemba, orders completed, how quickly you dispatch, and how many orders were disputed. These numbers come from the website&apos;s own records and cannot be edited.</li>
           <li>Answer buyers and cooperate if there is a dispute.</li>
-          <li>Payouts are sent to your registered mobile money number after delivery is confirmed or after a dispute is decided in your favour. The payout is the item price less the Zemba commission. You can follow each payout on your Payouts page.</li>
+          <li>Payouts are sent to your registered mobile money number after delivery is confirmed or after a dispute is decided in your favour. The payout is the item price less the Zemba commission, plus the shipping the buyer paid. You can follow each payout on your Payouts page.</li>
         </ul>
 
         <h2>8. What you must not do</h2>

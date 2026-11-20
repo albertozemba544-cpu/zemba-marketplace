@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     }
 
     const refundRows = await query(
-      `SELECT o.id, o.order_reference, o.amount, o.updated_at, p.title,
+      `SELECT o.id, o.order_reference, o.amount, o.shipping_amount, o.updated_at, p.title,
               b.full_name AS buyer_name, b.phone_number AS buyer_phone,
               EXISTS (SELECT 1 FROM transaction_events e WHERE e.order_id = o.id AND e.event_type = 'BUYER_CANCELLED') AS cancelled
        FROM orders o
@@ -62,10 +62,10 @@ export async function GET(req: NextRequest) {
     // a buyer who cancelled gets the item price less the cancellation fee; any other refund is in full
     const refunds = refundRows.map((o: any) => ({
       ...o,
-      refund_amount: o.cancelled ? cancellationRefund(Number(o.amount)) : fullRefund(Number(o.amount)),
+      refund_amount: o.cancelled ? cancellationRefund(Number(o.amount), Number(o.shipping_amount || 0)) : fullRefund(Number(o.amount), Number(o.shipping_amount || 0)),
     }));
     const recentRows = await query(
-      `SELECT o.order_reference, o.net_amount, o.amount, o.payout_status, o.payout_reference, o.payout_paid_at,
+      `SELECT o.order_reference, o.net_amount, o.amount, o.shipping_amount, o.payout_status, o.payout_reference, o.payout_paid_at,
               o.refund_status, o.refund_reference, o.refund_paid_at,
               EXISTS (SELECT 1 FROM transaction_events e WHERE e.order_id = o.id AND e.event_type = 'BUYER_CANCELLED') AS cancelled,
               COALESCE((SELECT SUM((e.payload->>'amount')::numeric) FROM transaction_events e WHERE e.order_id = o.id AND e.event_type = 'SELLER_CHARGE_DEDUCTED'), 0) AS deduction
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
     );
     const recent = recentRows.map((o: any) => ({
       ...o,
-      refund_amount: o.cancelled ? cancellationRefund(Number(o.amount)) : fullRefund(Number(o.amount)),
+      refund_amount: o.cancelled ? cancellationRefund(Number(o.amount), Number(o.shipping_amount || 0)) : fullRefund(Number(o.amount), Number(o.shipping_amount || 0)),
     }));
     return NextResponse.json({ payouts, refunds, recent, sellerCharges });
   } catch (error) {

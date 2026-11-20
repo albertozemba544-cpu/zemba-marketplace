@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { shrinkImage } from '@/lib/imageResize';
+import ShippingEditor, { ShippingForm, appendShipping, emptyShipping, shippingToForm } from '@/components/ShippingEditor';
 
 interface Photo { id: string; url: string; }
 const MAX_PHOTOS = 5;
@@ -11,6 +12,7 @@ export default function EditListing() {
   const params = useParams<{ id: string }>();
   const [loaded, setLoaded] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', price: '', category: 'General', stock: '1', status: 'ACTIVE' });
+  const [shipping, setShipping] = useState<ShippingForm>(emptyShipping);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [removed, setRemoved] = useState<string[]>([]);
   const [newFiles, setNewFiles] = useState<File[]>([]);
@@ -28,6 +30,7 @@ export default function EditListing() {
       if (!response.ok) { setError(data.error || 'Listing not found'); setLoaded(true); return; }
       const p = data.product;
       setForm({ title: p.title, description: p.description || '', price: String(p.price), category: p.category || 'General', stock: String(p.stock), status: p.status === 'PAUSED' ? 'PAUSED' : 'ACTIVE' });
+      setShipping(shippingToForm(data.shipping));
       setPhotos(data.images || []);
       setApproval(p.approval_status);
       setLoaded(true);
@@ -49,6 +52,7 @@ export default function EditListing() {
     setError(''); setNotice(''); setSaving(true);
     const body = new FormData();
     Object.entries(form).forEach(([key, value]) => body.set(key, String(value)));
+    appendShipping(body, shipping);
     body.set('remove_image_ids', removed.join(','));
     newFiles.forEach((file) => body.append('images', file));
     const response = await fetch(`/api/products/${params.id}`, { method: 'PATCH', body });
@@ -95,6 +99,8 @@ export default function EditListing() {
                   </select>
                 </label>
               </div>
+
+              <ShippingEditor value={shipping} onChange={setShipping} />
 
               <div className="zemba-field">Photos ({keptPhotos.length + newFiles.length}/{MAX_PHOTOS})
                 <div className="zemba-photo-grid">

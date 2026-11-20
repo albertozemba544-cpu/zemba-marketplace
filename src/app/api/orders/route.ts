@@ -10,9 +10,11 @@ import { requireUser } from '@/lib/auth';
 import { fail, handleError } from '@/lib/http';
 import { SITE } from '@/lib/site';
 import { kwacha, meetsMinimumOrder, withBuyerFees } from '@/lib/fees';
+import { shippingFor } from '@/lib/shipping';
+import { loadShippingConfigs } from '@/lib/shippingDb';
 
 const ORDER_COLUMNS = `o.id, o.order_reference, o.customer_id, o.seller_id, o.product_id, o.quantity, o.amount,
-  o.platform_fee, o.net_amount, o.status, o.waybill_image_url, o.timeout_days, o.created_at, o.updated_at, p.title,
+  o.shipping_amount, o.platform_fee, o.net_amount, o.status, o.waybill_image_url, o.timeout_days, o.created_at, o.updated_at, p.title,
   o.receiver_name, o.receiver_phone, o.delivery_town, o.delivery_note, o.carrier_name, o.waybill_number, o.pickup_point`;
 
 export async function POST(req: NextRequest) {
@@ -44,6 +46,7 @@ export async function POST(req: NextRequest) {
         throw Object.assign(new Error('Item unavailable'), { userMessage: `"${unavailable.title}" is no longer available. Please remove it from your cart.` });
       }
 
+      const shippingConfigs = await loadShippingConfigs(cart.rows.map((item: any) => item.product_id));
       const refs: string[] = [];
       for (const item of cart.rows) {
         if (item.stock < item.quantity) {
@@ -55,18 +58,24 @@ export async function POST(req: NextRequest) {
             userMessage: `The minimum order is ${kwacha(SITE.minOrder)}. \"${item.title}\" comes to ${kwacha(lineTotal)}, so please increase the quantity.`,
           });
         }
-        const { platform_fee, net_amount } = computeFees(lineTotal);
+        // shipping is worked out here from the seller's own prices, never taken from the browser
+        const quote = shippingFor(shippingConfigs.get(item.product_id) ?? { mode: 'FREE', otherPrice: null, rates: [] }, deliveryTown);
+        if (!quote.available) {
+          throw Object.assign(new Error('No delivery'), { userMessage: `The seller of "${item.title}" does not deliver to ${deliveryTown}. Please choose another town or remove it from your cart.` });
+        }
+        const shipping = quote.price;
+        const { platform_fee, net_amount } = computeFees(lineTotal, shipping);
         const id = randomUUID();
         const reference = id.replace(/-/g, '').slice(0, 10).toUpperCase();
 
         await client.query(
-          `INSERT INTO orders (id, order_reference, customer_id, seller_id, product_id, quantity, amount, platform_fee, net_amount, status,
+          `INSERT INTO orders (id, order_reference, customer_id, seller_id, product_id, quantity, amount, shipping_amount, platform_fee, net_amount, status,
                                receiver_name, receiver_phone, delivery_town, delivery_note)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING_PAYMENT', $10, $11, $12, $13)`,
-          [id, reference, auth.user.id, item.seller_id, item.product_id, item.quantity, lineTotal, platform_fee, net_amount,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'PENDING_PAYMENT', $11, $12, $13, $14)`,
+          [id, reference, auth.user.id, item.seller_id, item.product_id, item.quantity, lineTotal, shipping, platform_fee, net_amount,
            receiverName, receiverPhone, deliveryTown, deliveryNote || null]
         );
-        await logEvent(id, 'ORDER_CREATED', { product: item.title, quantity: item.quantity }, client);
+        await logEvent(id, 'ORDER_CREATED', { product: item.title, quantity: item.quantity, shipping }, client);
         refs.push(reference);
       }
       await client.query('DELETE FROM cart_items WHERE customer_id = $1', [auth.user.id]);

@@ -12,6 +12,9 @@ Built with Next.js 14, hosted on Vercel, with Supabase (database and photos) and
 ## Updating a project that is already running
 Run only the newest `db/migration-N.sql` files you have not run yet, then upload the new files.
 
+## Shipping
+Sellers choose free shipping or a shipping price per town when they list an item (`src/components/ShippingEditor.tsx`, `src/lib/shipping.ts`). The buyer pays item, shipping and the buyer protection fee in one payment, and the shipping goes to the seller with the payout. It needs `db/migration-7.sql`, run once in Supabase before deploying.
+
 ## Fees and order rules
 All fee rules live in `src/lib/site.ts` (seller commission, buyer protection fee, cancellation fee, minimum order) and `src/lib/fees.ts` does the maths. The checkout, order pages, legal pages, help pages and admin figures all read from them, so change a number in `site.ts` only.
 

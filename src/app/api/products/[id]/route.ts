@@ -12,6 +12,8 @@ import { checkListing } from '@/lib/moderation';
 import { requireUser } from '@/lib/auth';
 import { removeUploadedImage, saveUploadedImage } from '@/lib/storage';
 import { fail, handleError, isUuid } from '@/lib/http';
+import { parseShippingInput } from '@/lib/shipping';
+import { loadShippingConfigs, saveShipping } from '@/lib/shippingDb';
 
 const MAX_IMAGES = 5;
 
@@ -43,7 +45,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const product = await loadOwnProduct(params.id, auth.user.id, auth.user.role);
     if (!product) return fail('Listing not found', 404);
     const images = await ensureImageRows(product.id);
-    return NextResponse.json({ product, images });
+    const shipping = (await loadShippingConfigs([product.id])).get(product.id) ?? { mode: 'FREE', otherPrice: null, rates: [] };
+    return NextResponse.json({ product, images, shipping });
   } catch (error) {
     return handleError(error);
   }
@@ -71,6 +74,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (!Number.isFinite(price) || price <= 0 || price > 10_000_000) return fail('Enter a valid price');
     if (!Number.isInteger(stock) || stock < 0 || stock > 100_000) return fail('Enter a valid stock quantity');
     if (!['ACTIVE', 'PAUSED'].includes(status)) return fail('Status must be Active or Paused');
+    // shipping prices take effect straight away, like the price and stock
+    const shipping = form.has('shipping_mode')
+      ? parseShippingInput({ mode: form.get('shipping_mode'), other: form.get('shipping_other'), rates: form.get('shipping_rates') })
+      : null;
+    if (shipping && 'error' in shipping) return fail(shipping.error);
 
     const existing = await ensureImageRows(product.id);
     const toRemove = existing.filter((img) => removeIds.includes(img.id));
@@ -112,6 +120,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       for (const url of uploaded) {
         await client.query('INSERT INTO product_images (product_id, url, position) VALUES ($1, $2, $3)', [product.id, url, position++]);
       }
+      if (shipping && !('error' in shipping)) await saveShipping(client, product.id, shipping.mode, shipping.otherPrice, shipping.rates);
       const first = await client.query('SELECT url FROM product_images WHERE product_id = $1 ORDER BY position, created_at LIMIT 1', [product.id]);
       await client.query(
         `UPDATE products

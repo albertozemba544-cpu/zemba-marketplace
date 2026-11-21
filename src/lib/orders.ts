@@ -4,7 +4,7 @@ import { randomInt } from 'crypto';
 import { PoolClient } from 'pg';
 import { logEvent, queryOne, withTransaction } from './db';
 import { notifyUser } from './notify';
-import { siteUrl } from './site';
+import { SITE, siteUrl } from './site';
 import { cancellationRefund, fullRefund, sellerFailureCharge, totalToPay } from './fees';
 
 interface NotifyOrder {
@@ -16,27 +16,62 @@ interface NotifyOrder {
   cancelled: boolean; // true when the buyer cancelled before dispatch
   seller_charge: number; // refund charge the seller owes when the order was refunded because of them
   deduction: number; // refund charges taken off this order's payout
+  title: string; // the item
+  quantity: number;
+  buyer_name: string; // buyer's first name
+  receiver_name: string | null;
+  receiver_phone: string | null;
+  delivery_town: string | null;
+  carrier_name: string | null;
+  waybill_number: string | null; // the courier receipt number
+  pickup_point: string | null;
 }
 interface Template {
   subject: string;
+  details?: (o: NotifyOrder) => string[]; // extra lines for the email only (the SMS and WhatsApp text stays short)
   text: (o: NotifyOrder, extra?: string) => string;
 }
 
 const money = (value: number) => `K${Number(value).toFixed(2)}`;
+const shortTitle = (title: string) => (title.length > 32 ? `${title.slice(0, 31)}…` : title);
 
 // Short messages: they are sent by email AND by SMS, so keep them under about 160 characters.
 const TEMPLATES: Record<string, Template> = {
   FUNDS_SECURED: {
     subject: 'New paid order - please ship it',
-    text: (o) => `Zemba: Order #${o.reference} is paid (${money(o.amount)}) and held in escrow. Please ship within 3 days and upload proof of dispatch.`,
+    text: (o) => `Zemba: New paid order #${o.reference}: ${o.quantity} x ${shortTitle(o.title)} for ${o.buyer_name}, delivery to ${o.delivery_town || 'the buyer'}. Ship within ${SITE.dispatchDays} days and upload the courier receipt.`,
+    details: (o) => [
+      `Item: ${o.quantity} x ${o.title}`,
+      `Buyer: ${o.buyer_name}`,
+      `Deliver to: ${o.delivery_town || '-'}${o.receiver_name ? `, collected by ${o.receiver_name}${o.receiver_phone ? ` (${o.receiver_phone})` : ''}` : ''}`,
+      `Paid and held in escrow: ${money(o.amount)} for the item. You receive ${money(o.net_amount)} (the item price less Zemba's commission, plus any shipping) when the buyer confirms delivery.`,
+      `Next: ship it within ${SITE.dispatchDays} days, then mark it as dispatched with a photo of the courier receipt and the receipt (waybill) number. We send those to the buyer so they can collect the parcel.`,
+      'You can message the buyer from the order page. Zemba passes your messages on.',
+    ],
   },
   PAYMENT_RECEIVED: {
     subject: 'Your payment is secured',
     text: (o) => `Zemba: Your payment for order #${o.reference} (${money(o.total_amount)}) is held safely in escrow. Your delivery code is on your order page.`,
+    details: (o) => [
+      `Item: ${o.quantity} x ${o.title}`,
+      `Total paid: ${money(o.total_amount)}, held in escrow until you confirm delivery.`,
+      `Keep your delivery code private. Only enter it on Zemba once you have collected the parcel and are happy with it.`,
+      'You can message the seller from the order page. Zemba passes your messages on.',
+    ],
   },
   DISPATCHED: {
-    subject: 'Your order has been dispatched',
-    text: (o, extra) => `Zemba: Order #${o.reference} has been dispatched${extra ? ` (${extra})` : ''}. When it arrives, enter your delivery code on the order page to release payment.`,
+    subject: 'Your order is on its way',
+    text: (o) =>
+      `Zemba: Order #${o.reference} is on its way${o.carrier_name ? ` with ${o.carrier_name}` : ''}. Courier receipt (waybill) no. ${o.waybill_number || 'on your order page'}${o.pickup_point ? `. Collect at ${o.pickup_point}` : ''}. Take the receipt number when you collect it.`,
+    details: (o) => [
+      `Item: ${o.quantity} x ${o.title}`,
+      `Courier: ${o.carrier_name || '-'}`,
+      `Courier receipt (waybill) number: ${o.waybill_number || '-'}. You need this number to collect your parcel.`,
+      `Collect at: ${o.pickup_point || '-'}`,
+      'A photo of the receipt is on your order page.',
+      'When the parcel arrives and is as described, enter your delivery code on the order page. That releases the payment to the seller.',
+      'If something is wrong, do not enter the code. Message the seller or open a dispute from the order page.',
+    ],
   },
   COMPLETED: {
     subject: 'Order completed',
@@ -107,11 +142,13 @@ export async function createNotification(
 ) {
   const template = TEMPLATES[type];
   if (!template) return null;
-  const row = await queryOne<{ amount: number; shipping_amount: number; net_amount: number; reference: string; cancelled: boolean; deduction: number }>(
-    `SELECT amount, shipping_amount, net_amount, order_reference AS reference,
-            EXISTS (SELECT 1 FROM transaction_events e WHERE e.order_id = orders.id AND e.event_type = 'BUYER_CANCELLED') AS cancelled,
-            COALESCE((SELECT SUM((e.payload->>'amount')::numeric) FROM transaction_events e WHERE e.order_id = orders.id AND e.event_type = 'SELLER_CHARGE_DEDUCTED'), 0) AS deduction
-     FROM orders WHERE id = $1`,
+  const row = await queryOne<Omit<NotifyOrder, 'total_amount' | 'refund_amount' | 'seller_charge'> & { shipping_amount: number; cancelled: boolean }>(
+    `SELECT o.amount, o.shipping_amount, o.net_amount, o.order_reference AS reference, o.quantity, o.delivery_town, o.receiver_name, o.receiver_phone,
+            o.carrier_name, o.waybill_number, o.pickup_point,
+            COALESCE(p.title, 'your item') AS title, split_part(b.full_name, ' ', 1) AS buyer_name,
+            EXISTS (SELECT 1 FROM transaction_events e WHERE e.order_id = o.id AND e.event_type = 'BUYER_CANCELLED') AS cancelled,
+            COALESCE((SELECT SUM((e.payload->>'amount')::numeric) FROM transaction_events e WHERE e.order_id = o.id AND e.event_type = 'SELLER_CHARGE_DEDUCTED'), 0) AS deduction
+     FROM orders o LEFT JOIN products p ON p.id = o.product_id LEFT JOIN users b ON b.id = o.customer_id WHERE o.id = $1`,
     [orderId]
   );
   if (!row) return null;
@@ -148,7 +185,7 @@ export async function createNotification(
       await notifyUser(
         recipient,
         template.subject,
-        { title: template.subject, lines: [message.replace(/^Zemba: /, '')], buttonText: 'Open on Zemba', buttonUrl: link },
+        { title: template.subject, lines: [message.replace(/^Zemba: /, ''), ...(template.details ? template.details(order) : [])], buttonText: 'Open on Zemba', buttonUrl: link },
         message,
         { event: type, link, order_reference: order.reference }
       );

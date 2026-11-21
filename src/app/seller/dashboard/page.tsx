@@ -59,7 +59,7 @@ export default function SellerDashboard() {
       <div className="zemba-page">
         <nav className="zemba-nav">
           <span className="brand">Zemba Marketplace — Seller</span>
-          <div><a href="/seller/listings/new">New listing</a><a href="/seller/payouts">Payouts</a><a href="/seller/verify">Get verified</a><a href="/account">Account</a><a href="/help">Help</a></div>
+          <div><a href="/seller/listings/new">New listing</a><a href="/seller/payouts">Payouts</a><a href="/messages">Messages</a><a href="/seller/verify">Get verified</a><a href="/account">Account</a><a href="/help">Help</a></div>
         </nav>
 
         <main style={{ position: 'relative', zIndex: 1, maxWidth: 760, margin: '1rem auto', padding: '0 1.5rem 4rem' }}>

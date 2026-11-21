@@ -44,6 +44,7 @@ export default function Browse() {
           <div>
             <a href="/cart">Cart</a>
             {user && <a href="/orders">My orders</a>}
+            {user && <a href="/messages">Messages</a>}
             {user && <a href="/account">My account</a>}
             {user ? <><a href="/browse">Hi, {user.full_name?.split(' ')[0]}</a><a href="#" onClick={(e) => { e.preventDefault(); logout(); }}>Log out</a></> : <a href="/login">Log in</a>}
           </div>

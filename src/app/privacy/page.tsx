@@ -26,7 +26,7 @@ export default function PrivacyPage() {
           <li><strong>Delivery details:</strong> the name, phone number, town and pickup note you give at checkout. The seller sees them and passes them on to the bus company or courier that carries your item.</li>
           <li><strong>Your choices:</strong> whether you want news and offers by email.</li>
           <li><strong>Your orders:</strong> what you bought or sold, amounts, order status, delivery code, proof-of-dispatch photos, dispute messages and notifications.</li>
-          <li><strong>Your messages and reviews:</strong> anything you send through our contact form or suggestion box, and reviews you write.</li>
+          <li><strong>Your messages and reviews:</strong> anything you send through our contact form or suggestion box, messages between buyers and sellers (Zemba passes them on by email and WhatsApp without revealing your phone number or email address, and our team may read them to resolve a dispute or keep people safe), and reviews you write.</li>
           <li><strong>When you accepted our terms:</strong> the date and time you created your account and agreed to our policies.</li>
           <li><strong>Technical information:</strong> our hosting provider records basic technical data, such as IP address and browser type, to deliver and protect the website.</li>
         </ul>

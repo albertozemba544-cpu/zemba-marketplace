@@ -466,3 +466,25 @@ ALTER TABLE product_shipping_rates ENABLE ROW LEVEL SECURITY;
 
 -- The shipping the buyer paid on each order (it is paid out to the seller together with the item)
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_amount DECIMAL(12, 2) NOT NULL DEFAULT 0;
+
+-- ================================================================
+-- from migration-8.sql (messages between buyers and sellers)
+-- ================================================================
+CREATE TABLE IF NOT EXISTS messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES products(id) ON DELETE CASCADE,
+  buyer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  seller_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  notified_at TIMESTAMPTZ,            -- when the other person was told by email / WhatsApp
+  read_at TIMESTAMPTZ,                -- when the other person opened it
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (order_id IS NOT NULL OR product_id IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_messages_order ON messages(order_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_messages_product ON messages(product_id, buyer_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_messages_buyer ON messages(buyer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_seller ON messages(seller_id, created_at DESC);
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;

@@ -511,6 +511,7 @@ select.zemba-input { appearance: auto; }
 .zemba-legal p, .zemba-legal li { color: #3f5a4c; line-height: 1.75; }
 .zemba-legal ul, .zemba-legal ol { padding-left: 1.3rem; }
 .zemba-legal li { margin-bottom: 0.4rem; }
+.zemba-legal h3 { margin: 1.6rem 0 0.4rem; color: var(--green-dark); font-size: 1.05rem; }
 .zemba-legal a { color: var(--green); font-weight: 600; }
 .zemba-legal-note { margin: 0 0 1.5rem; padding: 1rem 1.2rem; border-radius: 12px; background: var(--green-soft); color: #0f5a3c; line-height: 1.6; }
 .zemba-legal-note strong { display: block; margin-bottom: 0.3rem; }

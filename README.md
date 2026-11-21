@@ -15,6 +15,9 @@ Run only the newest `db/migration-N.sql` files you have not run yet, then upload
 ## Shipping
 Sellers choose free shipping or a shipping price per town when they list an item (`src/components/ShippingEditor.tsx`, `src/lib/shipping.ts`). The buyer pays item, shipping and the buyer protection fee in one payment, and the shipping goes to the seller with the payout. It needs `db/migration-7.sql`, run once in Supabase before deploying.
 
+## Messages and alerts
+Buyers and sellers chat on the website (`src/components/MessagesPanel.tsx`, `/messages`, `/api/messages`). Zemba passes each message on by email, and by WhatsApp (through your n8n webhook, `NOTIFY_WEBHOOK_URL`) for people who ticked the WhatsApp box. Phone numbers, emails and links are hidden. It needs `db/migration-8.sql`, run once in Supabase before deploying. The order alerts (paid order, dispatch with the courier receipt number, delivery, payout, refund) are in `src/lib/orders.ts`.
+
 ## Fees and order rules
 All fee rules live in `src/lib/site.ts` (seller commission, buyer protection fee, cancellation fee, minimum order) and `src/lib/fees.ts` does the maths. The checkout, order pages, legal pages, help pages and admin figures all read from them, so change a number in `site.ts` only.
 

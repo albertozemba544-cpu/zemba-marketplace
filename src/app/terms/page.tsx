@@ -87,7 +87,11 @@ export default function TermsPage() {
           <li>Try to cheat the escrow system, for example by making false claims, creating fake accounts or fake orders.</li>
           <li>Try to break into the website, interfere with it, or collect other people&apos;s information.</li>
           <li>Use the website to harass or threaten anyone.</li>
+          <li>Use messages to take a sale out of Zemba, for example by sharing phone numbers, emails or links to arrange payment elsewhere. Buyers are only protected by escrow when they pay through Zemba.</li>
         </ul>
+
+        <h3>Messages between buyers and sellers</h3>
+        <p>Buyers and sellers can message each other on Zemba. Zemba passes each message on to the other person by email, and by WhatsApp if they have chosen that, so neither person has to share a phone number or email address. Phone numbers, email addresses and links in messages are hidden. We keep messages, and our team may read them to resolve a dispute, keep people safe or enforce these terms.</p>
 
         <h2>9. Reviews and content you post</h2>
         <p>Only buyers who have received an item (they entered their delivery code) can review it, and the review is marked as a verified purchase. Reviews and messages must be honest and based on your own experience. Reviews written by sellers, friends or family to boost sales are not allowed. You allow us to show them on the website. We may remove content that breaks these terms.</p>

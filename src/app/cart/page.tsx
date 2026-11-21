@@ -75,7 +75,7 @@ export default function Cart() {
       <div className="zemba-page">
         <nav className="zemba-nav">
           <a href="/browse" className="brand">Zemba Marketplace</a>
-          <div><a href="/browse">Continue browsing</a><a href="/orders">My orders</a></div>
+          <div><a href="/browse">Continue browsing</a><a href="/orders">My orders</a><a href="/messages">Messages</a></div>
         </nav>
 
         <main style={{ position: 'relative', zIndex: 1, maxWidth: 640, margin: '2rem auto', padding: '0 1.5rem 4rem' }}>

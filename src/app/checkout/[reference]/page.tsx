@@ -7,6 +7,7 @@ import OrderProtectionActions from '@/components/OrderProtectionActions';
 import DisputePanel from '@/components/DisputePanel';
 import { SITE } from '@/lib/site';
 import { kwacha } from '@/lib/fees';
+import MessagesPanel from '@/components/MessagesPanel';
 
 const STATUS_COPY: Record<string, string> = {
   PENDING_PAYMENT: 'Waiting for payment',
@@ -98,6 +99,8 @@ export default function OrderStatus() {
             {isBuyer && order.status === 'FUNDS_SECURED' && <CancelAction reference={order.order_reference} fee={order.cancel_fee} refund={order.cancel_refund} buyerFee={order.buyer_fee} onDone={loadOrder} />}
 
             <DisputePanel order={order} dispute={dispute} user={user} onChanged={loadOrder} />
+
+            {user && (isBuyer || user.id === order.seller_id || user.role === 'admin') && <MessagesPanel order={order.order_reference} tone="dark" />}
 
             {isBuyer && <OrderProtectionActions orderId={order.id} status={order.status} onChanged={loadOrder} />}
 

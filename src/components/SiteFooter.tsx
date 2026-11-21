@@ -18,6 +18,7 @@ export default function SiteFooter() {
           <a href="/browse">All products</a>
           <a href="/cart">Your cart</a>
           <a href="/orders">My orders</a>
+          <a href="/messages">Messages</a>
           <a href="/account">My account</a>
         </div>
         <div>

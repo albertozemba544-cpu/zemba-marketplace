@@ -98,6 +98,7 @@ export default function Home() {
             {accountName ? (
               <>
                 <a href="/orders">My orders</a>
+                <a href="/messages">Messages</a>
                 <a href="/cart">My cart</a>
                 <a href="/account">My account</a>
                 <button onClick={logout}>Log out</button>

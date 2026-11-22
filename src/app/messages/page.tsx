@@ -13,7 +13,8 @@ export default function MessagesPage() {
 
   useEffect(() => {
     fetch('/api/messages/inbox', { cache: 'no-store' }).then(async (response) => {
-      if (response.status === 401 || response.status === 403) { setNeedLogin(true); return; }
+      if (response.status === 401) { setNeedLogin(true); return; }
+      if (response.status === 403) { setThreads([]); return; } // admin accounts do not have buyer/seller messages
       const data = await response.json().catch(() => ({}));
       setThreads(data.threads || []);
     });

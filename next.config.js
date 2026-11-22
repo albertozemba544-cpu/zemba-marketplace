@@ -3,6 +3,14 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // admin pages are never stored by browsers or search engines
+        source: '/admin/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, max-age=0' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+        ],
+      },
+      {
         // the service worker must always be fetched fresh
         source: '/sw.js',
         headers: [

@@ -6,6 +6,7 @@ import SkyBackground from '@/components/SkyBackground';
 export default function SellerDashboard() {
   const [user, setUser] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
+  const [deleteError, setDeleteError] = useState('');
   const [orders, setOrders] = useState<any[]>([]);
   const [dispatching, setDispatching] = useState<string | null>(null);
   const [carriers, setCarriers] = useState<{ id: string; name: string }[]>([]);
@@ -51,6 +52,14 @@ export default function SellerDashboard() {
     const data = await response.json();
     if (response.ok) { setGeneratedLink({ url: data.share_url, id: data.link_id }); setQuickLinkTitle(''); setQuickLinkPrice(''); }
     else setLinkError(data.error);
+  }
+
+  async function deleteListing(product: any) {
+    if (!window.confirm(`Delete "${product.title}"? Buyers will no longer see it, and it is removed from carts. Orders already placed are not affected.`)) return;
+    setDeleteError('');
+    const response = await fetch(`/api/products/${product.id}`, { method: 'DELETE' });
+    if (response.ok) setProducts((current) => current.filter((p) => p.id !== product.id));
+    else setDeleteError((await response.json().catch(() => ({}))).error || 'Could not delete the listing');
   }
 
   return (
@@ -115,9 +124,10 @@ export default function SellerDashboard() {
             <table className="zemba-table">
               <thead><tr><th>Title</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr></thead>
               <tbody>
+                {deleteError && <tr><td colSpan={5} style={{ color: '#FFD9D9' }}>⚠ {deleteError}</td></tr>}
                 {products.length === 0 && <tr><td colSpan={5} style={{ color: 'rgba(255,255,255,0.6)' }}>No listings yet.</td></tr>}
                 {products.map((p) => (
-                  <tr key={p.id}><td>{p.title}</td><td>K{p.price}</td><td>{p.stock}</td><td><span className={`zemba-pill ${p.approval_status === 'APPROVED' ? (p.status === 'ACTIVE' ? (p.stock < 1 ? 'wait' : 'ok') : 'info') : p.approval_status === 'REJECTED' ? 'bad' : 'wait'}`} title={p.flag_reason || ''}>{p.approval_status === 'APPROVED' ? (p.status === 'ACTIVE' ? (p.stock < 1 ? 'Sold out — restock to show it again' : 'Live') : 'Paused') : p.approval_status === 'REJECTED' ? 'Removed' : 'Under review'}</span></td><td><a href={`/seller/listings/${p.id}/edit`} className="zemba-btn zemba-btn-secondary" style={{ padding: '0.35rem 0.8rem', fontSize: '0.8rem' }}>Edit</a></td></tr>
+                  <tr key={p.id}><td>{p.title}</td><td>K{p.price}</td><td>{p.stock}</td><td><span className={`zemba-pill ${p.approval_status === 'APPROVED' ? (p.status === 'ACTIVE' ? (p.stock < 1 ? 'wait' : 'ok') : 'info') : p.approval_status === 'REJECTED' ? 'bad' : 'wait'}`} title={p.flag_reason || ''}>{p.approval_status === 'APPROVED' ? (p.status === 'ACTIVE' ? (p.stock < 1 ? 'Sold out — restock to show it again' : 'Live') : 'Paused') : p.approval_status === 'REJECTED' ? 'Removed' : 'Under review'}</span></td><td style={{ whiteSpace: 'nowrap' }}><a href={`/seller/listings/${p.id}/edit`} className="zemba-btn zemba-btn-secondary" style={{ padding: '0.35rem 0.8rem', fontSize: '0.8rem' }}>Edit</a> <button type="button" className="zemba-btn zemba-btn-secondary zemba-danger" style={{ padding: '0.35rem 0.8rem', fontSize: '0.8rem' }} onClick={() => deleteListing(p)}>Delete</button></td></tr>
                 ))}
               </tbody>
             </table>

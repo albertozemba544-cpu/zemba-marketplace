@@ -15,8 +15,8 @@ export default function MyOrders() {
     if (!stored) { window.location.href = '/login'; return; }
     const u = JSON.parse(stored);
     if (u.role === 'seller') { window.location.href = '/seller/dashboard'; return; }
-    if (u.role === 'admin') { window.location.href = '/admin/dashboard'; return; }
     setUser(u);
+    if (u.role === 'admin') { setOrders([]); return; } // admins do not have shopping orders; stay on this page instead of being sent away
     fetch('/api/orders').then((response) => {
       if (response.status === 401 || response.status === 403) { localStorage.removeItem('zemba_user'); window.location.href = '/login'; return null; }
       return response.json();
@@ -31,6 +31,21 @@ export default function MyOrders() {
 
   const finished = ['COMPLETED', 'REFUNDED'];
   const visible = (orders || []).filter((o) => filter === 'all' || (filter === 'done' ? finished.includes(o.status) : !finished.includes(o.status)));
+
+  if (user?.role === 'admin') {
+    return (
+      <div className="zemba-page">
+        <nav className="zemba-nav">
+          <a href="/" className="brand">Zemba Marketplace</a>
+          <div><a href="/browse">Shop</a><a href="#" onClick={(e) => { e.preventDefault(); logout(); }}>Log out</a></div>
+        </nav>
+        <main className="zemba-orders-main">
+          <h1>You are logged in as an admin</h1>
+          <p className="zemba-muted">Admin accounts do not have shopping orders. To shop or test as a buyer, log out and log in with a buyer account. To manage the marketplace, open the <a href="/admin/dashboard">admin area</a>.</p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="zemba-page">

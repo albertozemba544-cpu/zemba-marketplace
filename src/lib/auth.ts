@@ -7,6 +7,8 @@ import { findUserById, User } from './db';
 
 export const SESSION_COOKIE = 'zemba_session';
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+const ADMIN_MAX_AGE_SECONDS = 60 * 60 * 8; // admin logins last 8 hours, then the admin must sign in again
+const maxAgeFor = (role: string) => (role === 'admin' ? ADMIN_MAX_AGE_SECONDS : MAX_AGE_SECONDS);
 
 function secret(): string {
   const value = process.env.SESSION_SECRET;
@@ -25,7 +27,7 @@ function sign(payload: string): string {
 
 export function createSessionToken(user: { id: string; role: string }): string {
   const payload = Buffer.from(
-    JSON.stringify({ id: user.id, role: user.role, exp: Math.floor(Date.now() / 1000) + MAX_AGE_SECONDS })
+    JSON.stringify({ id: user.id, role: user.role, exp: Math.floor(Date.now() / 1000) + maxAgeFor(user.role) })
   ).toString('base64url');
   return `${payload}.${sign(payload)}`;
 }
@@ -52,7 +54,7 @@ export function setSessionCookie(res: NextResponse, user: { id: string; role: st
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: MAX_AGE_SECONDS,
+    maxAge: maxAgeFor(user.role),
   });
 }
 

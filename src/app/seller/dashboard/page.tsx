@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { SITE } from '@/lib/site';
 import SkyBackground from '@/components/SkyBackground';
 
 export default function SellerDashboard() {
@@ -152,7 +153,7 @@ export default function SellerDashboard() {
                         <input className="zemba-input" name="carrier_other" placeholder="Name of the bus company or courier" style={{ display: 'none' }} />
                         <input className="zemba-input" name="waybill_number" placeholder="Waybill / tracking number" required maxLength={60} />
                         <input className="zemba-input" name="pickup_point" placeholder="Where the buyer collects it (e.g. Mazhandu depot, Kitwe)" required maxLength={200} />
-                        <label className="zemba-muted">Days it should take to arrive<input className="zemba-input" name="transit_days" type="number" min="1" max="60" defaultValue="5" aria-label="Transit days" /></label>
+                        <label className="zemba-muted">Days it should take to arrive (1 to {SITE.maxTransitDays})<input className="zemba-input" name="transit_days" type="number" min="1" max={SITE.maxTransitDays} defaultValue="5" aria-label="Transit days" /></label>
                         <label className="zemba-muted">Photo of the waybill or receipt<input className="zemba-input" name="proof" type="file" accept="image/jpeg,image/png" required aria-label="Proof of dispatch" /></label>
                         <button className="zemba-btn zemba-btn-primary" type="submit">Submit</button>
                       </form>

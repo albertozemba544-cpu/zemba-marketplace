@@ -12,7 +12,7 @@ import MessagesPanel from '@/components/MessagesPanel';
 const STATUS_COPY: Record<string, string> = {
   PENDING_PAYMENT: 'Waiting for payment',
   FUNDS_SECURED: 'Funds secured in escrow — waiting for delivery',
-  DISPATCHED: 'Item dispatched — confirm delivery to release funds',
+  DISPATCHED: 'Item dispatched — confirm delivery to release the payment',
   PENDING_ADMIN_REVIEW: 'Transit window expired — pending admin review',
   COMPLETED: 'Completed — funds released to seller',
   REFUNDED: 'Refunded to buyer',
@@ -76,6 +76,13 @@ export default function OrderStatus() {
                     {order.waybill_number && <p>Waybill number: <b>{order.waybill_number}</b></p>}
                     {order.pickup_point && <p>Collect at: <b>{order.pickup_point}</b></p>}
                     <p className="zemba-muted">Expected within about {order.timeout_days} days of dispatch. Take your phone and the delivery code when you collect it.</p>
+                    {order.status === 'DISPATCHED' && order.auto_release_at && (
+                      <p style={{ background: 'rgba(244,189,79,0.18)', padding: '0.6rem 0.8rem', borderRadius: 8 }}>
+                        {isBuyer
+                          ? <>Check your item and enter your delivery code. If you do nothing and do not open a dispute, your payment is released to the seller automatically on <b>{new Date(order.auto_release_at).toLocaleString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Lusaka' })}</b>.</>
+                          : <>If the buyer does not report a problem, the payment is released to you automatically on <b>{new Date(order.auto_release_at).toLocaleString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Lusaka' })}</b>.</>}
+                      </p>
+                    )}
                     {order.waybill_image_url && <a href={order.waybill_image_url} target="_blank" rel="noopener noreferrer"><img className="zemba-proof" src={order.waybill_image_url} alt="Proof of dispatch from the seller" /></a>}
                   </>
                 ) : <p className="zemba-muted">The seller has not dispatched it yet.</p>}
@@ -90,7 +97,7 @@ export default function OrderStatus() {
               </p>
             )}
 
-            {isBuyer && order.status === 'PENDING_PAYMENT' && <PaymentAction reference={order.order_reference} onDone={loadOrder} />}
+            {isBuyer && order.status === 'PENDING_PAYMENT' && <PaymentAction reference={order.order_reference} mode={order.payment_mode} onDone={loadOrder} />}
 
             {isBuyer && (order.status === 'FUNDS_SECURED' || order.status === 'DISPATCHED') && (
               <DeliveryAction reference={order.order_reference} deliveryCode={order.delivery_code} onDone={loadOrder} />
@@ -112,25 +119,57 @@ export default function OrderStatus() {
   );
 }
 
-function PaymentAction({ reference, onDone }: { reference: string; onDone: () => void }) {
+function PaymentAction({ reference, mode, onDone }: { reference: string; mode?: string; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [waiting, setWaiting] = useState('');
+  const [phone, setPhone] = useState('');
+  const [network, setNetwork] = useState('MTN');
+
+  // while the provider confirms the payment, ask every few seconds
+  async function waitForPayment() {
+    for (let i = 0; i < 40; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      const response = await fetch(`/api/orders/${reference}/payment-status`, { cache: 'no-store' });
+      const data = await response.json().catch(() => ({}));
+      if (data.status === 'FUNDS_SECURED') { setWaiting(''); onDone(); return; }
+      if (data.status === 'FAILED') { setWaiting(''); setError('The payment was not completed. Please try again.'); return; }
+    }
+    setWaiting('We are still waiting for your payment to be confirmed. This page will update once it arrives. You can also refresh in a minute.');
+  }
 
   async function pay(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError('');
-    const response = await fetch(`/api/orders/${reference}/pay`, { method: 'POST' });
+    const response = await fetch(`/api/orders/${reference}/pay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, network }) });
+    const data = await response.json().catch(() => ({}));
     setBusy(false);
-    if (response.ok) onDone();
-    else setError((await response.json().catch(() => ({}))).error || 'Payment failed');
+    if (!response.ok) { setError(data.error || 'Payment failed'); return; }
+    if (data.status === 'FUNDS_SECURED') { onDone(); return; }
+    if (data.redirect_url) { window.location.href = data.redirect_url; return; }
+    setWaiting(data.instructions || 'Approve the payment on your phone. We are waiting for confirmation.');
+    waitForPayment();
+  }
+
+  if (mode === 'off') {
+    return <p style={{ marginTop: '1.4rem', color: 'rgba(255,255,255,0.85)' }}>Online payment is opening soon. Your order is saved, and you will be able to pay for it here as soon as payments start.</p>;
   }
 
   return (
     <form onSubmit={pay} style={{ marginTop: '1.6rem' }}>
       <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem' }}>Choose mobile money to secure this order in escrow.</p>
-      <button className="zemba-btn zemba-btn-primary" style={{ width: '100%' }} disabled={busy}>{busy ? 'Processing…' : 'Pay with MTN / Airtel Money'}</button>
-      <small style={{ display: 'block', marginTop: '0.6rem', color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>Demo payment: this secures funds without charging a real wallet.</small>
+      {mode === 'provider' && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <select value={network} onChange={(e) => setNetwork(e.target.value)} style={{ padding: '0.6rem', borderRadius: 8, border: '1px solid #cfdad3', font: 'inherit' }}>
+            <option value="MTN">MTN</option><option value="AIRTEL">Airtel</option><option value="ZAMTEL">Zamtel</option>
+          </select>
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" required placeholder="Mobile money number" style={{ flex: 1, minWidth: 0, padding: '0.6rem', borderRadius: 8, border: '1px solid #cfdad3', font: 'inherit' }} />
+        </div>
+      )}
+      <button className="zemba-btn zemba-btn-primary" style={{ width: '100%' }} disabled={busy || !!waiting}>{busy ? 'Processing…' : waiting ? 'Waiting for confirmation…' : 'Pay with mobile money'}</button>
+      {mode === 'demo' && <small style={{ display: 'block', marginTop: '0.6rem', color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>Demo payment: this secures funds without charging a real wallet.</small>}
+      {waiting && <p style={{ color: '#FFE9B0', fontSize: '0.88rem' }}>{waiting}</p>}
       {error && <p style={{ color: '#FFD9D9', fontSize: '0.85rem' }}>⚠ {error}</p>}
     </form>
   );

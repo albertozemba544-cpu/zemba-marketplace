@@ -11,13 +11,19 @@ import { fail, handleError, isUuid } from '@/lib/http';
 import { SITE } from '@/lib/site';
 import { cancellationRefund, fullRefund } from '@/lib/fees';
 import { allocateDeductions, sellerChargeOrders, sellerChargeOwed } from '@/lib/sellerCharges';
+import { retryTransfer, sendTransfer } from '@/lib/paymentRun';
+import { paymentSetupStatus, getPaymentProvider } from '@/lib/payments';
+
+function isOverdue(since: string | Date | null): boolean {
+  return !!since && Date.now() - new Date(since).getTime() > SITE.payoutHours * 3600 * 1000;
+}
 
 export async function GET(req: NextRequest) {
   const auth = await requireUser(req, ['admin']);
   if ('res' in auth) return auth.res;
   try {
     const payoutRows = await query(
-      `SELECT o.id, o.seller_id, o.order_reference, o.amount, o.platform_fee, o.net_amount, o.updated_at, p.title,
+      `SELECT o.id, o.seller_id, o.payout_due_at, o.updated_at AS due_fallback, o.order_reference, o.amount, o.platform_fee, o.net_amount, o.updated_at, p.title,
               COALESCE(s.business_name, s.full_name) AS seller_name, s.momo_provider, s.momo_number
        FROM orders o
        LEFT JOIN products p ON p.id = o.product_id
@@ -33,7 +39,7 @@ export async function GET(req: NextRequest) {
     }
     const payouts = payoutRows.map((o: any) => {
       const deduction = deductions.get(o.id) || 0;
-      return { ...o, deduction, pay_amount: Math.max(0, Math.round((Number(o.net_amount) - deduction) * 100) / 100) };
+      return { ...o, deduction, pay_amount: Math.max(0, Math.round((Number(o.net_amount) - deduction) * 100) / 100), overdue: isOverdue(o.payout_due_at || o.due_fallback) };
     });
 
     // sellers who still owe refund charges (admin can waive a charge)
@@ -50,7 +56,7 @@ export async function GET(req: NextRequest) {
     }
 
     const refundRows = await query(
-      `SELECT o.id, o.order_reference, o.amount, o.shipping_amount, o.updated_at, p.title,
+      `SELECT o.id, o.order_reference, o.amount, o.shipping_amount, o.updated_at, o.refund_due_at, p.title,
               b.full_name AS buyer_name, b.phone_number AS buyer_phone,
               EXISTS (SELECT 1 FROM transaction_events e WHERE e.order_id = o.id AND e.event_type = 'BUYER_CANCELLED') AS cancelled
        FROM orders o
@@ -63,6 +69,7 @@ export async function GET(req: NextRequest) {
     const refunds = refundRows.map((o: any) => ({
       ...o,
       refund_amount: o.cancelled ? cancellationRefund(Number(o.amount), Number(o.shipping_amount || 0)) : fullRefund(Number(o.amount), Number(o.shipping_amount || 0)),
+      overdue: isOverdue(o.refund_due_at || o.updated_at),
     }));
     const recentRows = await query(
       `SELECT o.order_reference, o.net_amount, o.amount, o.shipping_amount, o.payout_status, o.payout_reference, o.payout_paid_at,
@@ -77,7 +84,17 @@ export async function GET(req: NextRequest) {
       ...o,
       refund_amount: o.cancelled ? cancellationRefund(Number(o.amount), Number(o.shipping_amount || 0)) : fullRefund(Number(o.amount), Number(o.shipping_amount || 0)),
     }));
-    return NextResponse.json({ payouts, refunds, recent, sellerCharges });
+    // payouts and refunds that are being sent by the provider, or that failed
+    const problems = await query(
+      `SELECT o.id, o.order_reference, 'payout' AS kind, o.payout_status AS status, o.net_amount AS amount, o.payment_error,
+              COALESCE(s.business_name, s.full_name) AS person, s.momo_provider AS network, s.momo_number AS phone
+         FROM orders o JOIN users s ON s.id = o.seller_id WHERE o.payout_status IN ('PROCESSING', 'FAILED')
+       UNION ALL
+       SELECT o.id, o.order_reference, 'refund', o.refund_status, o.amount, o.payment_error, b.full_name, NULL, b.phone_number
+         FROM orders o JOIN users b ON b.id = o.customer_id WHERE o.refund_status IN ('PROCESSING', 'FAILED')
+       LIMIT 50`
+    );
+    return NextResponse.json({ payouts, refunds, recent, sellerCharges, problems, provider: { ...paymentSetupStatus(), ready: getPaymentProvider() !== null }, payoutHours: SITE.payoutHours });
   } catch (error) {
     return handleError(error);
   }
@@ -89,7 +106,17 @@ export async function POST(req: NextRequest) {
   try {
     const { order_id, kind, reference } = await req.json();
     const ref = String(reference || '').trim().slice(0, 100);
-    if (!isUuid(order_id) || !['payout', 'refund', 'waive'].includes(kind)) return fail('A valid order and type are required');
+    if (!isUuid(order_id) || !['payout', 'refund', 'waive', 'send_payout', 'send_refund', 'retry_payout', 'retry_refund'].includes(kind)) return fail('A valid order and type are required');
+
+    // send through the payment provider (only when one is connected)
+    if (kind === 'send_payout' || kind === 'send_refund') {
+      const outcome = await sendTransfer(order_id, kind === 'send_payout' ? 'payout' : 'refund', auth.user.id);
+      return outcome.ok ? NextResponse.json({ ok: true, status: outcome.status }) : fail(outcome.error || 'Could not send it', 409);
+    }
+    if (kind === 'retry_payout' || kind === 'retry_refund') {
+      const back = await retryTransfer(order_id, kind === 'retry_payout' ? 'payout' : 'refund');
+      return back ? NextResponse.json({ ok: true }) : fail('This payment is not in a failed state', 409);
+    }
 
     // admin waives the refund charge on one refunded order
     if (kind === 'waive') {
@@ -108,7 +135,7 @@ export async function POST(req: NextRequest) {
     let netAmount = 0;
     if (kind === 'payout') {
       const target = await queryOne<{ seller_id: string; net_amount: number }>(
-        `SELECT seller_id, net_amount FROM orders WHERE id = $1 AND status = 'COMPLETED' AND payout_status = 'DUE'`,
+        `SELECT seller_id, net_amount FROM orders WHERE id = $1 AND status = 'COMPLETED' AND payout_status IN ('DUE', 'FAILED')`,
         [order_id]
       );
       if (target?.seller_id) {
@@ -122,9 +149,9 @@ export async function POST(req: NextRequest) {
     const order = await queryOne<{ id: string; customer_id: string | null; seller_id: string | null }>(
       kind === 'payout'
         ? `UPDATE orders SET payout_status = 'PAID', payout_reference = $1, payout_paid_at = now()
-           WHERE id = $2 AND status = 'COMPLETED' AND payout_status = 'DUE' RETURNING id, customer_id, seller_id`
+           WHERE id = $2 AND status = 'COMPLETED' AND payout_status IN ('DUE', 'FAILED') RETURNING id, customer_id, seller_id`
         : `UPDATE orders SET refund_status = 'PAID', refund_reference = $1, refund_paid_at = now()
-           WHERE id = $2 AND status = 'REFUNDED' AND refund_status = 'DUE' RETURNING id, customer_id, seller_id`,
+           WHERE id = $2 AND status = 'REFUNDED' AND refund_status IN ('DUE', 'FAILED') RETURNING id, customer_id, seller_id`,
       [ref || 'Offset against refund charges', order_id]
     );
     if (!order) return fail('This payment was already marked as sent, or the order was not found', 409);

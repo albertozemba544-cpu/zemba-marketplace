@@ -20,7 +20,7 @@ export default function AdminPayouts() {
     load();
   }, []);
 
-  async function markPaid(order_id: string, kind: 'payout' | 'refund' | 'waive') {
+  async function markPaid(order_id: string, kind: string) {
     setBusy(order_id); setError('');
     const response = await fetch('/api/admin/payouts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order_id, kind, reference: refs[order_id] || '' }) });
     setBusy('');
@@ -38,7 +38,14 @@ export default function AdminPayouts() {
       <AdminNav />
       <main style={{ maxWidth: 980, margin: '1.5rem auto', padding: '0 1.5rem 4rem' }}>
         <h1 style={{ fontSize: '1.7rem' }}>Money to move</h1>
-        <p className="zemba-muted">Send each amount by mobile money, then type the transaction reference and press &quot;Mark as sent&quot;. The seller or buyer is told automatically and the payment is kept on record.</p>
+        <p className="zemba-muted">Send each amount by mobile money, then type the transaction reference and press &quot;Mark as sent&quot;. The seller or buyer is told automatically and the payment is kept on record. We promise payouts and refunds within {data?.payoutHours ?? 24} hours, so anything marked Overdue needs you now.</p>
+        {data?.provider && (
+          <div className="zemba-card" style={{ padding: '0.8rem 1rem', margin: '0.8rem 0' }}>
+            {data.provider.ready
+              ? <>Payment provider connected: <strong>{data.provider.provider}</strong>. {data.provider.autoPayouts ? 'Automatic payouts are ON: due payments are sent every morning.' : 'Automatic payouts are OFF. Use Send through provider on each row.'}</>
+              : <>No payment provider is connected yet, so every payout and refund is sent by hand and marked as sent.</>}
+          </div>
+        )}
         {error && <div className="zemba-auth-error">{error}</div>}
         {!data && <p className="zemba-muted">Loading…</p>}
         {data && (
@@ -65,7 +72,11 @@ export default function AdminPayouts() {
                         {Number(o.deduction) > 0 && <><br /><small style={{ color: '#a35b00' }}>{money(o.deduction)} taken off for refund charges</small></>}
                       </td>
                       <td>{Number(o.pay_amount) === 0 ? <small className="zemba-muted">Nothing to send. Covered by refund charges.</small> : <input className="zemba-input" style={{ margin: 0, minWidth: 130 }} placeholder="MoMo ref" value={refs[o.id] || ''} onChange={(e) => setRefs({ ...refs, [o.id]: e.target.value })} />}</td>
-                      <td><button className="zemba-btn zemba-btn-primary" disabled={busy === o.id} onClick={() => markPaid(o.id, 'payout')}>{Number(o.pay_amount) === 0 ? 'Confirm' : 'Mark as sent'}</button></td>
+                      <td>
+                        <button className="zemba-btn zemba-btn-primary" disabled={busy === o.id} onClick={() => markPaid(o.id, 'payout')}>{Number(o.pay_amount) === 0 ? 'Confirm' : 'Mark as sent'}</button>
+                        {data.provider?.ready && Number(o.pay_amount) > 0 && <> <button className="zemba-btn zemba-btn-secondary" disabled={busy === o.id} onClick={() => markPaid(o.id, 'send_payout')}>Send through provider</button></>}
+                        {o.overdue && <><br /><small style={{ color: '#b42318', fontWeight: 700 }}>Overdue</small></>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -85,12 +96,37 @@ export default function AdminPayouts() {
                       <td>{o.buyer_phone}</td>
                       <td><strong>{money(o.refund_amount ?? o.amount)}</strong>{o.cancelled && <><br /><small className="zemba-muted">buyer cancelled: item price less cancellation fee</small></>}</td>
                       <td><input className="zemba-input" style={{ margin: 0, minWidth: 130 }} placeholder="MoMo ref" value={refs[o.id] || ''} onChange={(e) => setRefs({ ...refs, [o.id]: e.target.value })} /></td>
-                      <td><button className="zemba-btn zemba-btn-primary" disabled={busy === o.id} onClick={() => markPaid(o.id, 'refund')}>Mark as sent</button></td>
+                      <td>
+                        <button className="zemba-btn zemba-btn-primary" disabled={busy === o.id} onClick={() => markPaid(o.id, 'refund')}>Mark as sent</button>
+                        {data.provider?.ready && <> <button className="zemba-btn zemba-btn-secondary" disabled={busy === o.id} onClick={() => markPaid(o.id, 'send_refund')}>Send through provider</button></>}
+                        {o.overdue && <><br /><small style={{ color: '#b42318', fontWeight: 700 }}>Overdue</small></>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </section>
+
+            {(data.problems || []).length > 0 && (
+              <section className="zemba-card" style={{ padding: '1.2rem', marginTop: '1.2rem', overflowX: 'auto' }}>
+                <h3 style={{ margin: '0 0 0.4rem' }}>Being sent, or failed</h3>
+                <p className="zemba-muted" style={{ marginTop: 0 }}>Payments the provider is still working on, and ones that failed. For a failed one you can try again, or send it by hand and mark it as sent.</p>
+                <table className="zemba-table">
+                  <thead><tr><th>Order</th><th>To</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    {data.problems.map((p: any) => (
+                      <tr key={p.id + p.kind}>
+                        <td>#{p.order_reference}<br /><small className="zemba-muted">{p.kind}</small></td>
+                        <td>{p.person}<br /><small className="zemba-muted">{p.network ? `${p.network} ` : ''}{p.phone}</small></td>
+                        <td>{money(p.amount)}</td>
+                        <td>{p.status === 'FAILED' ? <span style={{ color: '#b42318', fontWeight: 700 }}>Failed</span> : 'Being sent'}{p.payment_error && <><br /><small className="zemba-muted">{p.payment_error}</small></>}</td>
+                        <td>{p.status === 'FAILED' && <><button className="zemba-btn zemba-btn-secondary" disabled={busy === p.id} onClick={() => markPaid(p.id, p.kind === 'payout' ? 'retry_payout' : 'retry_refund')}>Try again</button> <button className="zemba-btn zemba-btn-primary" disabled={busy === p.id} onClick={() => markPaid(p.id, p.kind)}>Mark as sent</button></>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
 
             {(data.sellerCharges || []).length > 0 && (
               <section className="zemba-card" style={{ padding: '1.2rem', marginTop: '1.2rem', overflowX: 'auto' }}>

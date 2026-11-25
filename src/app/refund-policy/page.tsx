@@ -22,7 +22,7 @@ export default function RefundPolicyPage() {
           <thead><tr><th>Situation</th><th>What you get back</th></tr></thead>
           <tbody>
             <tr><td>The seller does not dispatch your order within {SITE.dispatchDays} days of your payment</td><td>Everything you paid, including the shipping and the buyer protection fee. This happens automatically.</td></tr>
-            <tr><td>The delivery window runs out and there is no proof of dispatch</td><td>Everything you paid, including the shipping and the buyer protection fee. This happens automatically.</td></tr>
+            <tr><td>The review period ends and you did not confirm or open a dispute</td><td>No refund. The payment is released to the seller automatically.</td></tr>
             <tr><td>The item is not as described, damaged, fake, or does not arrive, and a dispute is decided in your favour</td><td>Everything you paid, including the shipping and the buyer protection fee.</td></tr>
             <tr><td>You cancel before the seller has dispatched your order</td><td>The item price less a cancellation fee of {SITE.cancelFeePercent}% (minimum {kwacha(SITE.cancelFeeMin)}), plus the shipping you paid. The buyer protection fee is not refunded.</td></tr>
             <tr><td>You have already entered your delivery code</td><td>No refund. The money has been released to the seller.</td></tr>
@@ -43,10 +43,19 @@ export default function RefundPolicyPage() {
         <p>Once the seller has dispatched the order it can no longer be cancelled. If the item does not arrive or is not as described, open a dispute instead (section 6).</p>
 
         <h2>4. How and when you are refunded</h2>
-        <p>Refunds are sent back to the mobile money account you paid from. After a refund is approved we send it as soon as we can. You will see the order marked as refunded and we will notify you by email.</p>
+        <p>Refunds are sent back to your mobile money number (MTN, Airtel or Zamtel). After a refund is approved we aim to send it within {SITE.payoutHours} hours. You will see the order marked as refunded and we will notify you by email, and by SMS or WhatsApp if you chose it.</p>
 
-        <h2>5. Delivery windows and extra protection</h2>
-        <p>When the seller marks your order as dispatched, they set a delivery window. We warn you 2 days before it ends. If your item is still on its way, you can extend your protection by 7 days from the order page, up to a maximum of 90 days in total. If the window ends and the seller has uploaded proof of dispatch, an administrator reviews the order before any money moves. We may ask both of you for more information.</p>
+        <h2>5. How long we hold your money</h2>
+        <p>Your payment is held in escrow, and the timing is fixed:</p>
+        <ul>
+          <li>The seller has <strong>{SITE.dispatchDays} days</strong> to send your order. If they do not, you are refunded in full automatically.</li>
+          <li>When the seller sends it, they say how many days it needs to arrive (at most {SITE.maxTransitDays}). You get the courier receipt number to collect it.</li>
+          <li>After that delivery time, you have <strong>{SITE.reviewDays} more days</strong> to check the item. Enter your delivery code if it is fine, or open a dispute if it is not.</li>
+          <li>If you do nothing and there is no dispute, the payment is released to the seller <strong>automatically</strong>.</li>
+          <li>We email you (and message you by SMS or WhatsApp if you chose it) two days before and again one day before the automatic release, so it never surprises you.</li>
+          <li>We <strong>never hold your money longer than {SITE.maxHoldDays} days</strong> after you paid. The only exception is an open dispute, which stays open until it is settled.</li>
+        </ul>
+        <p>If you need a little more time, you can add {SITE.extendDays} more days from the order page, as long as the total stays within {SITE.maxHoldDays} days. If something is wrong, open a dispute. A dispute stops the automatic release.</p>
 
         <h2>6. How to open a dispute</h2>
         <ol>

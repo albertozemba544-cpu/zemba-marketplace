@@ -36,7 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: { reference: 
 
     const cancelled = await withTransaction(async (client) => {
       const updated = await client.query(
-        `UPDATE orders SET status = 'REFUNDED', refund_status = 'DUE', updated_at = now()
+        `UPDATE orders SET status = 'REFUNDED', refund_status = 'DUE', refund_due_at = now(), updated_at = now()
          WHERE id = $1 AND status = 'FUNDS_SECURED' RETURNING id`,
         [order.id]
       );

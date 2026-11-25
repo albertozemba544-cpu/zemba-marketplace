@@ -5,6 +5,8 @@ import { queryOne } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { fail, handleError } from '@/lib/http';
 import { withBuyerFees } from '@/lib/fees';
+import { getPaymentProvider, paymentProviderName } from '@/lib/payments';
+import { demoPaymentsEnabled } from '@/lib/flags';
 
 export async function GET(req: NextRequest, { params }: { params: { reference: string } }) {
   const auth = await requireUser(req);
@@ -25,7 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: { reference: s
     }
     // only the buyer gets to see the delivery code
     if (order.customer_id !== user.id) delete order.delivery_code;
-    return NextResponse.json(withBuyerFees(order));
+    return NextResponse.json({ ...withBuyerFees(order), payment_mode: getPaymentProvider() ? (paymentProviderName() === 'demo' ? 'demo' : 'provider') : demoPaymentsEnabled() ? 'demo' : 'off' });
   } catch (error) {
     return handleError(error, 'Unable to fetch order');
   }

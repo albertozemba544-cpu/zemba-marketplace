@@ -5,6 +5,7 @@ import { processEscrowTimeouts } from '@/workers/escrowTimeout';
 import { execute, query, logEvent } from '@/lib/db';
 import { alertAdmin } from '@/lib/alerts';
 import { handleError } from '@/lib/http';
+import { alertOverduePayments, processDuePayments, reconcileTransfers } from '@/lib/paymentRun';
 
 // Vercel Cron calls this daily and sends "Authorization: Bearer <CRON_SECRET>".
 export async function GET(req: NextRequest) {
@@ -21,7 +22,11 @@ export async function GET(req: NextRequest) {
     ).catch(() => [] as { order_id: string }[]);
     for (const row of stale) await logEvent(row.order_id, 'DISPUTE_ESCALATED', { reason: 'No agreement after 7 days' }).catch(() => null);
     if (stale.length) await alertAdmin('Disputes need a decision', `${stale.length} dispute(s) were not settled in 7 days. Open Admin -> Disputes.`).catch(() => null);
-    return NextResponse.json({ ...result, disputesEscalated: stale.length });
+    // Payment provider jobs. All of them do nothing until a provider is connected (PAYMENT_PROVIDER) and, for sending, AUTO_PAYOUTS=true.
+    const reconciled = await reconcileTransfers().catch(() => 0);
+    const sent = await processDuePayments().catch(() => ({ payouts: 0, refunds: 0, failed: 0 }));
+    const overdue = await alertOverduePayments().catch(() => 0);
+    return NextResponse.json({ ...result, disputesEscalated: stale.length, transfersReconciled: reconciled, autoPaid: sent, overduePayments: overdue });
   } catch (error) {
     return handleError(error);
   }

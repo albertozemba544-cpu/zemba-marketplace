@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       if (!business_name || !momo_number || !nrc_number || !location) {
         return fail('Business name, NRC number, location and mobile money number are required for sellers');
       }
-      if (!['MTN', 'AIRTEL'].includes(momo_provider)) return fail('Choose MTN or Airtel for mobile money');
+      if (!['MTN', 'AIRTEL', 'ZAMTEL'].includes(momo_provider)) return fail('Choose MTN, Airtel or Zamtel for mobile money');
     }
 
     const passwordHash = await bcrypt.hash(password, 10);

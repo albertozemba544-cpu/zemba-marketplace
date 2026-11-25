@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     if (order.status !== 'PENDING_ADMIN_REVIEW') return fail('This order is not waiting for review', 409);
 
     const settled = await withTransaction(async (client) => {
-      const result = await settleOrder(client, order_id, resolution);
+      const result = await settleOrder(client, order_id, resolution, 'ADMIN');
       await logEvent(order_id, 'ADMIN_REVIEW_RESOLVED', { resolution, notes: String(notes || '').slice(0, 1000), admin_id: auth.user.id }, client);
       return result;
     });

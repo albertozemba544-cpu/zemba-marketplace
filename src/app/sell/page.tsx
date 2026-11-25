@@ -22,7 +22,7 @@ export default function SellPage() {
       <h2 className="zemba-info-h2">How to start</h2>
       <div className="zemba-legal">
         <ol>
-          <li>Open a seller account with your NRC number, town and the MTN or Airtel mobile money number you want to be paid on.</li>
+          <li>Open a seller account with your NRC number, town and the MTN, Airtel or Zamtel mobile money number you want to be paid on.</li>
           <li>Your shop is ready as soon as you register (confirm your email if we ask you to).</li>
           <li>Add your products with clear photos, honest descriptions and the right price. Products go live straight away. Automatic checks and buyers' reports keep the marketplace clean, and anything suspicious is hidden until our team has looked at it.</li>
           <li>Optional but powerful: ask for a short video call to check your ID and earn the <strong>Verified seller</strong> badge.</li>

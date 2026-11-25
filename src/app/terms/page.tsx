@@ -33,7 +33,7 @@ export default function TermsPage() {
           <li>The buyer adds an item to the cart and pays through the website. The buyer pays the item price, the shipping price set by the seller for the buyer&apos;s town, and the buyer protection fee, all in one payment. The money goes into escrow and is not given to the seller yet.</li>
           <li>The seller must send the item within 3 days of the payment being confirmed and upload proof of dispatch, such as a photo of the waybill or receipt.</li>
           <li>The buyer receives the item, checks it, and enters the 6-digit delivery code shown on the order page.</li>
-          <li>When the code is entered, the money is released to the seller, less the Zemba commission.</li>
+          <li>When the code is entered, the money is released to the seller, less the Zemba commission. If the buyer does nothing and does not open a dispute, the money is released to the seller automatically at the end of the review period (see below).</li>
         </ol>
         <p>A buyer can cancel a paid order until the seller has dispatched it, as explained in section 6. If the seller does not send the item, or the item does not arrive, the buyer is protected as explained in section 6 and in the <a href="/refund-policy">Refund Policy</a>.</p>
 
@@ -56,6 +56,7 @@ export default function TermsPage() {
 
         <h2>6. If something goes wrong</h2>
         <ul>
+          <li><strong>How long we hold the money.</strong> The seller must send a paid order within {SITE.dispatchDays} days and says how many days it needs to arrive (at most {SITE.maxTransitDays}). After that, the buyer has {SITE.reviewDays} more days to check the item. If the buyer has not confirmed delivery or opened a dispute by then, the money is released to the seller automatically. We warn the buyer before this happens. We never hold the money longer than {SITE.maxHoldDays} days after payment, except while a dispute is open. A buyer can add up to {SITE.extendDays} more days within that limit.</li>
           <li><strong>The seller does not send the item in time.</strong> The buyer is refunded automatically, in full, including the shipping and the buyer protection fee.</li>
           <li><strong>The buyer cancels before dispatch.</strong> A buyer can cancel a paid order from the order page until the seller has dispatched it. The buyer is then refunded the item price less a cancellation fee of {SITE.cancelFeePercent}% of the item price (minimum {kwacha(SITE.cancelFeeMin)}), plus any shipping paid. The buyer protection fee is not refunded. For example, on a K200 item the buyer pays {kwacha(200 + buyerProtectionFee(200))}, and if the buyer cancels they get back {kwacha(200 - cancellationFee(200))}. Once the seller has dispatched the order it can no longer be cancelled.</li>
           <li><strong>The item does not arrive or is not as described.</strong> If the seller dispatched the order but the item does not arrive, or it is not as described, the buyer can open a dispute. A dispute decided in the buyer&apos;s favour is refunded in full, including the shipping and the buyer protection fee.</li>
@@ -77,7 +78,7 @@ export default function TermsPage() {
           <li>Sellers can ask for a <strong>Verified seller</strong> badge by showing their ID to a member of our team on a short video call. The badge means we checked that ID when we looked at it. We do not keep photos or recordings of it. It is not a promise about the seller&apos;s honesty or the quality of their items, and we may remove it at any time, for example after complaints or if we find the details were false.</li>
           <li>Buyers can see your track record: how long you have been on Zemba, orders completed, how quickly you dispatch, and how many orders were disputed. These numbers come from the website&apos;s own records and cannot be edited.</li>
           <li>Answer buyers and cooperate if there is a dispute.</li>
-          <li>Payouts are sent to your registered mobile money number after delivery is confirmed or after a dispute is decided in your favour. The payout is the item price less the Zemba commission, plus the shipping the buyer paid. You can follow each payout on your Payouts page.</li>
+          <li>Payouts are sent to your registered mobile money number after delivery is confirmed or after a dispute is decided in your favour. The payout is the item price less the Zemba commission, plus the shipping the buyer paid. We aim to send payouts and refunds within {SITE.payoutHours} hours of approval, to the mobile money number (MTN, Airtel or Zamtel) on the account. You can follow each payout on your Payouts page.</li>
         </ul>
 
         <h2>8. What you must not do</h2>

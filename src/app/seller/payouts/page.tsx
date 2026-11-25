@@ -16,7 +16,7 @@ export default function SellerPayouts() {
   }, []);
 
   const money = (value: number) => `K${Number(value || 0).toFixed(2)}`;
-  const payoutLabel = (o: any) => (o.payout_status === 'PAID' ? { label: 'Paid', tone: 'ok' } : o.payout_status === 'DUE' ? { label: 'Payout being sent', tone: 'wait' } : o.status === 'REFUNDED' ? { label: 'Refunded to buyer', tone: 'bad' } : { label: 'After delivery is confirmed', tone: 'info' });
+  const payoutLabel = (o: any) => (o.payout_status === 'PAID' ? { label: 'Paid', tone: 'ok' } : (o.payout_status === 'DUE' || o.payout_status === 'PROCESSING' || o.payout_status === 'FAILED') ? { label: 'Payout being sent', tone: 'wait' } : o.status === 'REFUNDED' ? { label: 'Refunded to buyer', tone: 'bad' } : { label: 'After delivery is confirmed', tone: 'info' });
 
   return (
     <div className="zemba-page">

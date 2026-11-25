@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { reference: 
 
     const released = await withTransaction(async (client) => {
       const updated = await client.query(
-        `UPDATE orders SET status = 'COMPLETED', payout_status = 'DUE', updated_at = now()
+        `UPDATE orders SET status = 'COMPLETED', payout_status = 'DUE', payout_due_at = now(), release_method = 'BUYER_CODE', updated_at = now()
          WHERE id = $1 AND status IN ('FUNDS_SECURED', 'DISPATCHED')`,
         [order.id]
       );

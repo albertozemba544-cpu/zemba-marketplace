@@ -6,6 +6,7 @@ import { logEvent, queryOne, withTransaction } from './db';
 import { notifyUser } from './notify';
 import { SITE, siteUrl } from './site';
 import { cancellationRefund, fullRefund, sellerFailureCharge, totalToPay } from './fees';
+import { formatWhen } from './holding';
 
 interface NotifyOrder {
   amount: number; // item price
@@ -25,6 +26,7 @@ interface NotifyOrder {
   carrier_name: string | null;
   waybill_number: string | null; // the courier receipt number
   pickup_point: string | null;
+  release_when: string; // when the money is released by itself (formatted, Zambia time)
 }
 interface Template {
   subject: string;
@@ -62,7 +64,7 @@ const TEMPLATES: Record<string, Template> = {
   DISPATCHED: {
     subject: 'Your order is on its way',
     text: (o) =>
-      `Zemba: Order #${o.reference} is on its way${o.carrier_name ? ` with ${o.carrier_name}` : ''}. Courier receipt (waybill) no. ${o.waybill_number || 'on your order page'}${o.pickup_point ? `. Collect at ${o.pickup_point}` : ''}. Take the receipt number when you collect it.`,
+      `Zemba: Order #${o.reference} is on its way${o.carrier_name ? ` with ${o.carrier_name}` : ''}. Courier receipt (waybill) no. ${o.waybill_number || 'on your order page'}${o.pickup_point ? `. Collect at ${o.pickup_point}` : ''}. Take the receipt number when you collect it. Confirm delivery by ${o.release_when}, or your payment is released to the seller automatically.`,
     details: (o) => [
       `Item: ${o.quantity} x ${o.title}`,
       `Courier: ${o.carrier_name || '-'}`,
@@ -70,20 +72,56 @@ const TEMPLATES: Record<string, Template> = {
       `Collect at: ${o.pickup_point || '-'}`,
       'A photo of the receipt is on your order page.',
       'When the parcel arrives and is as described, enter your delivery code on the order page. That releases the payment to the seller.',
+      `You have until ${o.release_when} to check the item. If you do nothing and do not open a dispute, the payment is released to the seller automatically on that date. We never hold money longer than ${SITE.maxHoldDays} days after payment.`,
       'If something is wrong, do not enter the code. Message the seller or open a dispute from the order page.',
     ],
   },
   COMPLETED: {
     subject: 'Order completed',
     text: (o) => `Zemba: Order #${o.reference} is complete. Payment has been released to the seller. Thank you for shopping with us!`,
+    details: (o) => [`Item: ${o.quantity} x ${o.title}`, 'You can now leave a review for the item and the seller from the order page.'],
   },
   DELIVERY_CONFIRMED: {
     subject: 'Buyer confirmed delivery',
-    text: (o) => `Zemba: The buyer confirmed delivery of order #${o.reference}. ${money(o.net_amount)} will be paid to your mobile money.`,
+    text: (o) => `Zemba: The buyer confirmed delivery of order #${o.reference}. ${money(o.net_amount)} will be paid to your mobile money. We aim to send it within ${SITE.payoutHours} hours.`,
+  },
+  RELEASE_WARNING: {
+    subject: 'Your payment will be released soon',
+    text: (o) => `Zemba: Order #${o.reference}: unless you confirm delivery or open a dispute, your payment will be released to the seller on ${o.release_when}. Check the item and use your delivery code if it is fine.`,
+    details: (o) => [
+      `Item: ${o.quantity} x ${o.title}`,
+      `Your payment of ${money(o.total_amount)} is released to the seller automatically on ${o.release_when}.`,
+      'If you have the item and it is right, enter your delivery code on the order page now.',
+      'If something is wrong, open a dispute on the order page before that time. A dispute stops the automatic release.',
+      `You can add ${SITE.extendDays} more days from the order page if you need them. We never hold money longer than ${SITE.maxHoldDays} days after payment.`,
+    ],
+  },
+  RELEASE_FINAL_WARNING: {
+    subject: 'Last reminder: your payment is released tomorrow',
+    text: (o) => `Zemba: Last reminder for order #${o.reference}: your payment of ${money(o.total_amount)} is released to the seller on ${o.release_when}. Enter your delivery code if the item is fine, or open a dispute if something is wrong.`,
+    details: (o) => [
+      `Item: ${o.quantity} x ${o.title}`,
+      `If you do nothing, ${money(o.total_amount)} goes to the seller on ${o.release_when}.`,
+      'Open the order page now to confirm delivery, or to open a dispute.',
+    ],
+  },
+  RELEASE_SOON_SELLER: {
+    subject: 'Payment due to be released to you soon',
+    text: (o) => `Zemba: Order #${o.reference}: ${money(o.net_amount)} is due to be released to you on ${o.release_when} if the buyer does not report a problem.`,
+  },
+  AUTO_RELEASE_BUYER: {
+    subject: 'Your payment was released to the seller',
+    text: (o) => `Zemba: Order #${o.reference}: no problem was reported by the end of the review period, so your payment of ${money(o.total_amount)} was released to the seller. You can still leave a review.`,
+    details: (o) => [`Item: ${o.quantity} x ${o.title}`, `Released automatically. We never hold money longer than ${SITE.maxHoldDays} days after payment.`],
+  },
+  AUTO_RELEASE_SELLER: {
+    subject: 'Payment released to you',
+    text: (o) => `Zemba: Order #${o.reference}: the buyer did not report a problem, so ${money(o.net_amount)} was released to you. We aim to send it to your mobile money within ${SITE.payoutHours} hours.`,
+    details: (o) => [`Item: ${o.quantity} x ${o.title}`, `You receive ${money(o.net_amount)} (the item price less Zemba's commission, plus any shipping).`, 'You can follow it on your Payouts page.'],
   },
   TRANSIT_WARNING: {
     subject: 'Please confirm your delivery',
-    text: (o) => `Zemba: Order #${o.reference} is still marked as in transit. Confirm delivery, or extend your protection by 7 days, before the window closes.`,
+    text: (o) => `Zemba: Order #${o.reference} is still on its way. Confirm delivery when you have the item, or open a dispute if something is wrong.`,
   },
   DISPUTE_OPENED: {
     subject: 'A dispute was opened on your order',
@@ -93,8 +131,8 @@ const TEMPLATES: Record<string, Template> = {
     subject: 'Your order was refunded',
     text: (o) =>
       o.cancelled
-        ? `Zemba: Order #${o.reference} was cancelled. ${money(o.refund_amount)} (the item price less the cancellation fee) will be sent back to your mobile money.`
-        : `Zemba: Order #${o.reference} was refunded. ${money(o.refund_amount)} will be sent back to your mobile money.`,
+        ? `Zemba: Order #${o.reference} was cancelled. ${money(o.refund_amount)} (the item price less the cancellation fee) will be sent back to your mobile money. We aim to send it within ${SITE.payoutHours} hours.`
+        : `Zemba: Order #${o.reference} was refunded. ${money(o.refund_amount)} will be sent back to your mobile money. We aim to send it within ${SITE.payoutHours} hours.`,
   },
   ORDER_CANCELLED: {
     subject: 'The buyer cancelled an order',
@@ -106,7 +144,7 @@ const TEMPLATES: Record<string, Template> = {
   },
   RELEASE_SELLER: {
     subject: 'Payment released to you',
-    text: (o) => `Zemba: Funds for order #${o.reference} were released to you. ${money(o.net_amount)} will be paid to your mobile money.`,
+    text: (o) => `Zemba: Funds for order #${o.reference} were released to you. ${money(o.net_amount)} will be paid to your mobile money. We aim to send it within ${SITE.payoutHours} hours.`,
   },
   RELEASE_BUYER: {
     subject: 'Your order was closed',
@@ -142,9 +180,9 @@ export async function createNotification(
 ) {
   const template = TEMPLATES[type];
   if (!template) return null;
-  const row = await queryOne<Omit<NotifyOrder, 'total_amount' | 'refund_amount' | 'seller_charge'> & { shipping_amount: number; cancelled: boolean }>(
+  const row = await queryOne<Omit<NotifyOrder, 'total_amount' | 'refund_amount' | 'seller_charge' | 'release_when'> & { shipping_amount: number; cancelled: boolean; auto_release_at: string | null }>(
     `SELECT o.amount, o.shipping_amount, o.net_amount, o.order_reference AS reference, o.quantity, o.delivery_town, o.receiver_name, o.receiver_phone,
-            o.carrier_name, o.waybill_number, o.pickup_point,
+            o.carrier_name, o.waybill_number, o.pickup_point, o.auto_release_at,
             COALESCE(p.title, 'your item') AS title, split_part(b.full_name, ' ', 1) AS buyer_name,
             EXISTS (SELECT 1 FROM transaction_events e WHERE e.order_id = o.id AND e.event_type = 'BUYER_CANCELLED') AS cancelled,
             COALESCE((SELECT SUM((e.payload->>'amount')::numeric) FROM transaction_events e WHERE e.order_id = o.id AND e.event_type = 'SELLER_CHARGE_DEDUCTED'), 0) AS deduction
@@ -160,6 +198,7 @@ export async function createNotification(
     net_amount: Number(row.net_amount),
     deduction: Number(row.deduction),
     seller_charge: sellerFailureCharge(itemPrice),
+    release_when: formatWhen(row.auto_release_at),
     total_amount: totalToPay(itemPrice, shipping),
     refund_amount: row.cancelled ? cancellationRefund(itemPrice, shipping) : fullRefund(itemPrice, shipping),
   };
@@ -211,10 +250,10 @@ export async function markFundsSecured(
   const secured = await withTransaction(async (client) => {
     const updated = await client.query(
       `UPDATE orders
-         SET status = 'FUNDS_SECURED', gateway_transaction_id = $1, delivery_code = $2, updated_at = now()
+         SET status = 'FUNDS_SECURED', gateway_transaction_id = $1, delivery_code = $2, payment_provider = $4, paid_at = now(), updated_at = now()
        WHERE id = $3 AND status = 'PENDING_PAYMENT'
        RETURNING id`,
-      [transactionId, deliveryCode, order.id]
+      [transactionId, deliveryCode, order.id, provider]
     );
     if (updated.rowCount === 0) return false;
     if (order.product_id) {
@@ -238,16 +277,19 @@ export async function markFundsSecured(
  * The payout / refund itself is sent by hand for now, so it is added to the admin "Money to move" list.
  * Run it inside a transaction; call notifySettlement() after the commit.
  */
-export async function settleOrder(client: PoolClient, orderId: string, resolution: 'release' | 'refund') {
+export async function settleOrder(client: PoolClient, orderId: string, resolution: 'release' | 'refund', method: 'DISPUTE' | 'ADMIN' = 'DISPUTE') {
   const result = await client.query(
     `UPDATE orders
         SET status = $1::varchar,
             payout_status = CASE WHEN $2::text = 'release' THEN 'DUE' ELSE payout_status END,
+            payout_due_at = CASE WHEN $2::text = 'release' THEN now() ELSE payout_due_at END,
             refund_status = CASE WHEN $2::text = 'refund' THEN 'DUE' ELSE refund_status END,
+            refund_due_at = CASE WHEN $2::text = 'refund' THEN now() ELSE refund_due_at END,
+            release_method = CASE WHEN $2::text = 'release' THEN $4::varchar ELSE release_method END,
             updated_at = now()
       WHERE id = $3
       RETURNING id, customer_id, seller_id`,
-    [resolution === 'release' ? 'COMPLETED' : 'REFUNDED', resolution, orderId]
+    [resolution === 'release' ? 'COMPLETED' : 'REFUNDED', resolution, orderId, method]
   );
   return result.rows[0] as { id: string; customer_id: string | null; seller_id: string | null } | undefined;
 }

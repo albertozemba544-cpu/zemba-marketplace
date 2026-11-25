@@ -1,85 +1,115 @@
 import { logEvent, withTransaction } from '@/lib/db';
 import { createNotification } from '@/lib/orders';
+import { paymentsPaused } from '@/lib/settings';
+import { SITE } from '@/lib/site';
 
-// Runs once a day (see vercel.json). Rules:
-//  - paid but not dispatched within 3 days  -> refund the buyer
-//  - dispatched, transit window expired     -> admin review (if there is proof) or refund
-//  - 2 days before the window ends          -> warn the buyer (email + SMS)
-// Refunds are added to the admin "Money to move" list (refund_status = DUE).
+// Runs once a day (see vercel.json). The rules (see src/lib/holding.ts):
+//  1. Paid but not dispatched within 3 days          -> refund the buyer in full.
+//  2. Dispatched, delivery window + 3 review days
+//     over, buyer has not confirmed or disputed      -> the money is released to the seller automatically.
+//  3. Never later than 14 days after payment (an open dispute is the only exception).
+//  4. Before an automatic release                    -> warn the buyer twice (2 days before, then 1 day before)
+//                                                      and tell the seller on the final day.
+// Refunds and payouts are added to the admin "Money to move" list (refund_status / payout_status = DUE).
+// While payments are paused from Admin Controls, nothing is released automatically.
 
 type Row = { id: string; customer_id: string | null; seller_id: string | null };
 
 export async function processEscrowTimeouts() {
+  const paused = await paymentsPaused().catch(() => false);
+
   const result = await withTransaction(async (client) => {
+    // 1. never dispatched in time
     const unshipped = await client.query(
-      `UPDATE orders SET status = 'REFUNDED', refund_status = 'DUE', updated_at = now()
-       WHERE status = 'FUNDS_SECURED' AND NOT admin_hold AND updated_at < now() - interval '3 days'
-       RETURNING id, customer_id, seller_id`
+      `UPDATE orders SET status = 'REFUNDED', refund_status = 'DUE', refund_due_at = now(), updated_at = now()
+       WHERE status = 'FUNDS_SECURED' AND NOT admin_hold
+         AND COALESCE(paid_at, updated_at) < now() - make_interval(days => $1)
+       RETURNING id, customer_id, seller_id`,
+      [SITE.dispatchDays]
     );
     for (const order of unshipped.rows as Row[]) {
-      await logEvent(order.id, 'ESCROW_TIMEOUT_REFUND', { reason: 'Seller failed to dispatch within 3 days' }, client);
+      await logEvent(order.id, 'ESCROW_TIMEOUT_REFUND', { reason: `Seller did not dispatch within ${SITE.dispatchDays} days` }, client);
     }
 
-    const overdue = await client.query(
+    // older dispatched orders that have no release time yet get one (the same rule as at dispatch)
+    await client.query(
       `UPDATE orders
-         SET status = CASE WHEN waybill_image_url IS NULL THEN 'REFUNDED' ELSE 'PENDING_ADMIN_REVIEW' END,
-             refund_status = CASE WHEN waybill_image_url IS NULL THEN 'DUE' ELSE refund_status END,
-             updated_at = now()
-       WHERE status = 'DISPATCHED' AND NOT admin_hold AND updated_at + make_interval(days => timeout_days) < now()
-       RETURNING id, status, customer_id, seller_id`
+          SET auto_release_at = LEAST(
+                COALESCE(dispatched_at, updated_at) + make_interval(days => timeout_days + $1),
+                COALESCE(paid_at, created_at) + make_interval(days => $2))
+        WHERE status = 'DISPATCHED' AND auto_release_at IS NULL`,
+      [SITE.reviewDays, SITE.maxHoldDays]
     );
-    for (const order of overdue.rows as (Row & { status: string })[]) {
-      const review = order.status === 'PENDING_ADMIN_REVIEW';
-      await logEvent(
-        order.id,
-        review ? 'ESCROW_TIMEOUT_ADMIN_REVIEW' : 'ESCROW_TIMEOUT_REFUND',
-        { reason: review ? 'Transit window expired; proof of dispatch requires review' : 'Transit window expired with no proof of dispatch' },
-        client
+
+    // 2 and 3. automatic release (the 14-day cap is enforced here again, whatever the stored date says)
+    let released: Row[] = [];
+    if (!paused) {
+      const done = await client.query(
+        `UPDATE orders
+            SET status = 'COMPLETED', payout_status = 'DUE', payout_due_at = now(), release_method = 'AUTO_RELEASE', updated_at = now()
+          WHERE status = 'DISPATCHED' AND NOT admin_hold
+            AND LEAST(auto_release_at, COALESCE(paid_at, created_at) + make_interval(days => $1)) <= now()
+          RETURNING id, customer_id, seller_id`,
+        [SITE.maxHoldDays]
       );
+      released = done.rows as Row[];
+      for (const order of released) {
+        await logEvent(order.id, 'AUTO_RELEASED', { reason: 'The buyer did not confirm or open a dispute before the release time' }, client);
+      }
     }
 
-    const warnings = await client.query(
-      `UPDATE orders SET timeout_warning_sent_at = now()
-       WHERE status = 'DISPATCHED' AND NOT admin_hold AND timeout_warning_sent_at IS NULL
-         AND updated_at + make_interval(days => timeout_days - 2) <= now()
-       RETURNING id, customer_id, seller_id`
+    // 4. warnings before an automatic release
+    // first warning: 48 hours before. If the order is already inside the last 24 hours, this counts as the final one.
+    const first = await client.query(
+      `UPDATE orders
+          SET release_warnings_sent = CASE WHEN auto_release_at <= now() + interval '24 hours' THEN 2 ELSE 1 END
+        WHERE status = 'DISPATCHED' AND NOT admin_hold AND release_warnings_sent = 0
+          AND auto_release_at > now() AND auto_release_at <= now() + interval '48 hours'
+        RETURNING id, customer_id, seller_id, release_warnings_sent`
     );
-    for (const order of warnings.rows as Row[]) {
-      await logEvent(
-        order.id,
-        'TRANSIT_WINDOW_WARNING',
-        { message: 'Your order is still in transit. Confirm delivery or extend your protection window by 7 days.', days_remaining: 2 },
-        client
-      );
+    const final = await client.query(
+      `UPDATE orders SET release_warnings_sent = 2
+        WHERE status = 'DISPATCHED' AND NOT admin_hold AND release_warnings_sent = 1
+          AND auto_release_at > now() AND auto_release_at <= now() + interval '24 hours'
+        RETURNING id, customer_id, seller_id`
+    );
+    for (const order of first.rows as Row[]) {
+      await logEvent(order.id, 'RELEASE_WARNING_SENT', { stage: (order as any).release_warnings_sent === 2 ? 'final' : 'first' }, client);
     }
+    for (const order of final.rows as Row[]) await logEvent(order.id, 'RELEASE_WARNING_SENT', { stage: 'final' }, client);
 
     return {
       unshipped: unshipped.rows as Row[],
-      overdue: overdue.rows as (Row & { status: string })[],
-      warnings: warnings.rows as Row[],
+      released,
+      firstWarnings: (first.rows as (Row & { release_warnings_sent: number })[]).filter((r) => r.release_warnings_sent === 1),
+      finalWarnings: [...(first.rows as (Row & { release_warnings_sent: number })[]).filter((r) => r.release_warnings_sent === 2), ...(final.rows as Row[])],
     };
   });
 
-  // Emails and SMS go out after the database changes are saved.
+  // Emails, SMS and WhatsApp go out after the database changes are saved. A failed message never undoes a payment decision.
   const sends: Promise<unknown>[] = [];
   for (const order of result.unshipped) {
     if (order.customer_id) sends.push(createNotification(order.id, order.customer_id, 'REFUND_BUYER'));
     if (order.seller_id) sends.push(createNotification(order.id, order.seller_id, 'REFUND_SELLER'));
   }
-  for (const order of result.overdue) {
-    if (order.status === 'REFUNDED') {
-      if (order.customer_id) sends.push(createNotification(order.id, order.customer_id, 'REFUND_BUYER'));
-      if (order.seller_id) sends.push(createNotification(order.id, order.seller_id, 'REFUND_SELLER'));
-    }
+  for (const order of result.released) {
+    if (order.customer_id) sends.push(createNotification(order.id, order.customer_id, 'AUTO_RELEASE_BUYER'));
+    if (order.seller_id) sends.push(createNotification(order.id, order.seller_id, 'AUTO_RELEASE_SELLER'));
   }
-  for (const order of result.warnings) {
-    if (order.customer_id) sends.push(createNotification(order.id, order.customer_id, 'TRANSIT_WARNING'));
+  for (const order of result.firstWarnings) {
+    if (order.customer_id) sends.push(createNotification(order.id, order.customer_id, 'RELEASE_WARNING'));
+  }
+  for (const order of result.finalWarnings) {
+    if (order.customer_id) sends.push(createNotification(order.id, order.customer_id, 'RELEASE_FINAL_WARNING'));
+    if (order.seller_id) sends.push(createNotification(order.id, order.seller_id, 'RELEASE_SOON_SELLER'));
   }
   await Promise.allSettled(sends);
 
   return {
-    refunded: result.unshipped.length + result.overdue.filter((o) => o.status === 'REFUNDED').length,
-    pendingAdminReview: result.overdue.filter((o) => o.status === 'PENDING_ADMIN_REVIEW').length,
-    warnings: result.warnings.length,
+    refundedUnshipped: result.unshipped.length,
+    autoReleased: result.released.length,
+    firstWarnings: result.firstWarnings.length,
+    finalWarnings: result.finalWarnings.length,
+    paymentsPaused: paused,
   };
 }

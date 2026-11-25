@@ -12,6 +12,7 @@ export default function AdminControls() {
   const [email, setEmail] = useState<any>(null);
   const [testResult, setTestResult] = useState<any>(null);
   const [testing, setTesting] = useState(false);
+  const [payment, setPayment] = useState<any>(null);
 
   function load() {
     fetch('/api/admin/controls').then((r) => {
@@ -22,6 +23,7 @@ export default function AdminControls() {
   useEffect(() => {
     load();
     fetch('/api/admin/email-test').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setEmail(d); });
+    fetch('/api/admin/payment-status').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setPayment(d); });
   }, []);
 
   async function sendTest() {
@@ -52,6 +54,27 @@ export default function AdminControls() {
           {!state && <p className="zemba-muted">Loading…</p>}
           {state && (
             <>
+              <section className="zemba-card" style={{ padding: '1.3rem', marginTop: '1rem' }}>
+                <h3 style={{ marginTop: 0 }}>Payment provider</h3>
+                {payment && (
+                  <>
+                    <p>
+                      Provider: <strong>{payment.provider === 'none' ? 'none connected yet' : payment.provider}</strong>.{' '}
+                      {payment.provider === 'none' && 'Payouts and refunds are sent by hand from Money to move.'}
+                      {payment.provider === 'demo' && 'Demo mode: no real money moves. For the Preview environment only.'}
+                    </p>
+                    <ul className="zemba-check-list">
+                      <li>{payment.paymentsLive ? '✅' : '⚠️'} PAYMENTS_LIVE is {payment.paymentsLive ? 'on (the test mode banner is hidden)' : 'off (the site shows the test mode banner)'}</li>
+                      <li>{payment.demoPayments ? '⚠️' : '✅'} Demo payments are {payment.demoPayments ? 'ON. Turn ALLOW_DEMO_PAYMENTS off before real customers pay.' : 'off'}</li>
+                      {payment.checks.map((c: any) => <li key={c.name}>{c.ok ? '✅' : '❌'} {c.name} in Vercel</li>)}
+                      <li>{payment.autoPayouts ? '✅' : 'ℹ️'} Automatic payouts and refunds (AUTO_PAYOUTS) are {payment.autoPayouts ? 'on' : 'off'}</li>
+                    </ul>
+                    <p className="zemba-muted">Give your provider this webhook address: <strong>{payment.webhookUrl}</strong></p>
+                    <p className="zemba-muted">When your agreement is ready: add the provider's keys in Vercel, set PAYMENT_PROVIDER, fill in the provider file in src/lib/payments/providers, test in a preview, then set PAYMENTS_LIVE and AUTO_PAYOUTS.</p>
+                  </>
+                )}
+              </section>
+
               <section className="zemba-card" style={{ padding: '1.3rem', marginTop: '1rem' }}>
                 <h3 style={{ marginTop: 0 }}>Email check</h3>
                 <p>Password resets, order alerts and sold-out notices all go by email. Check that it is set up, then send yourself a test.</p>

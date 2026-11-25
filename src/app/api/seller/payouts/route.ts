@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const summary = await queryOne<{ in_escrow: number; awaiting: number; paid: number }>(
       `SELECT
          COALESCE(SUM(net_amount) FILTER (WHERE status IN ('FUNDS_SECURED', 'DISPATCHED', 'PENDING_ADMIN_REVIEW', 'DISPUTED')), 0) AS in_escrow,
-         COALESCE(SUM(net_amount) FILTER (WHERE status = 'COMPLETED' AND payout_status = 'DUE'), 0) AS awaiting,
+         COALESCE(SUM(net_amount) FILTER (WHERE status = 'COMPLETED' AND payout_status IN ('DUE', 'PROCESSING', 'FAILED')), 0) AS awaiting,
          COALESCE(SUM(net_amount) FILTER (WHERE payout_status = 'PAID'), 0) AS paid
        FROM orders WHERE seller_id = $1`,
       [auth.user.id]

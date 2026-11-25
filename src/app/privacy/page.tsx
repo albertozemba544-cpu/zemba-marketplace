@@ -48,7 +48,7 @@ export default function PrivacyPage() {
         <ul>
           <li><strong>The other person in your order.</strong> For example, sellers see the details needed to complete a sale, and buyers see the seller&apos;s business name.</li>
           <li><strong>Bus companies and couriers,</strong> through the seller, so that your item can be carried to you and you can be called when it arrives.</li>
-          <li><strong>Payment providers</strong> such as MTN and Airtel mobile money and any payment gateway we use, to take payments, send payouts and refunds.</li>
+          <li><strong>Payment providers</strong> such as MTN, Airtel and Zamtel mobile money and any payment gateway we use, to take payments, send payouts and refunds.</li>
           <li><strong>Service providers that help us run the website:</strong> Supabase (database and photo storage), Vercel (website hosting), and Brevo (email). They may only use the information to provide their service to us.</li>
           <li><strong>Authorities</strong> when the law requires it, or to protect people from fraud or harm.</li>
         </ul>

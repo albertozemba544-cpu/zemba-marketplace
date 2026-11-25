@@ -23,7 +23,12 @@ export const SITE = {
   cancelFeePercent: 5, // fee when a buyer cancels a paid order before dispatch: % of the item price...
   cancelFeeMin: 5, // ...with this minimum in kwacha
   minOrder: 30, // smallest item value of one order, in kwacha
-  dispatchDays: 3, // days a seller has to dispatch a paid order
+  dispatchDays: 3, // days a seller has to dispatch a paid order, or the buyer is refunded
+  maxTransitDays: 8, // the most days the seller can give for the item to arrive
+  reviewDays: 3, // days the buyer has to check the item after the delivery window; then the money is released automatically
+  maxHoldDays: 14, // the money is never held longer than this after payment (an open dispute is the only exception)
+  extendDays: 3, // days a buyer can add to the review period, within the 14-day limit
+  payoutHours: 24, // we aim to send payouts and refunds within this many hours of approval
   sellerChargePercent: 5, // charge to a seller when an order is refunded because of them: % of the item price...
   sellerChargeMin: 5, // ...with this minimum in kwacha. It is deducted automatically from their payouts.
   sellerChargesFrom: '2026-11-19', // refunds before this date carry no seller charge
